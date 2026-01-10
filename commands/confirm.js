@@ -77,13 +77,13 @@ module.exports = {
 					new ActionRowBuilder().addComponents(
 						new ButtonBuilder()
 							.setCustomId(
-								`confirm_transaction_${transaction.id}_${interaction.user.id}_${otherUser.id}_confirm`
+								`confirm_transaction_${transaction.id}_${interaction.user.id}_${otherUser.id}_${otherUser.id}_confirm`
 							)
 							.setLabel("Confirm Transaction")
 							.setStyle(ButtonStyle.Success),
 						new ButtonBuilder()
 							.setCustomId(
-								`confirm_transaction_${transaction.id}_${interaction.user.id}_${otherUser.id}_deny`
+								`confirm_transaction_${transaction.id}_${interaction.user.id}_${otherUser.id}_${otherUser.id}_deny`
 							)
 							.setLabel("Cancel")
 							.setStyle(ButtonStyle.Danger)
