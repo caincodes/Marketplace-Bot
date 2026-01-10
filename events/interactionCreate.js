@@ -8,6 +8,7 @@ const {
 	TextInputBuilder,
 	TextInputStyle,
 	StringSelectMenuBuilder,
+	StringSelectMenuOptionBuilder,
 } = require("discord.js");
 
 module.exports = {
@@ -38,11 +39,12 @@ module.exports = {
 				const transactionId = parts[2];
 				const initiatorId = parts[3];
 				const otherId = parts[4];
-				const action = parts[5];
+				const intendedUserId = parts[5];
+				const action = parts[6];
 
-				if (interaction.user.id !== initiatorId && interaction.user.id !== otherId) {
+				if (interaction.user.id !== intendedUserId) {
 					return await interaction.reply({
-						content: "You are not authorized to respond to this confirmation.",
+						content: "Only the other party can confirm this transaction.",
 						flags: 64,
 					});
 				}
@@ -125,18 +127,19 @@ module.exports = {
 
 				const ratingSelect = new StringSelectMenuBuilder()
 					.setCustomId("rating")
-					.setPlaceholder("Select your rating")
+					.setPlaceholder("Select your rating!")
+					.setRequired(true)
 					.addOptions(
-						{
-							label: "Positive (👍)",
-							value: "positive",
-							emoji: "👍",
-						},
-						{
-							label: "Negative (👎)",
-							value: "negative",
-							emoji: "👎",
-						}
+						new StringSelectMenuOptionBuilder()
+							.setLabel("Positive")
+							.setDescription("Good experience with this user")
+							.setValue("positive")
+							.setEmoji("👍"),
+						new StringSelectMenuOptionBuilder()
+							.setLabel("Negative")
+							.setDescription("Bad experience with this user")
+							.setValue("negative")
+							.setEmoji("👎")
 					);
 
 				const reviewInput = new TextInputBuilder()
