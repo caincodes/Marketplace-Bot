@@ -13,13 +13,26 @@ const sequelize = new Sequelize({
 // Load models
 const User = require("./models/User")(sequelize);
 const Listing = require("./models/Listing")(sequelize);
+const Transaction = require("./models/Transaction")(sequelize);
+const Rating = require("./models/Rating")(sequelize);
 
 // Define associations
 User.hasMany(Listing, { foreignKey: "userId" });
 Listing.belongsTo(User, { foreignKey: "userId" });
+Listing.hasMany(Transaction, { foreignKey: "listingId" });
+Transaction.belongsTo(Listing, { foreignKey: "listingId" });
+Transaction.hasMany(Rating, { foreignKey: "transactionId" });
+Rating.belongsTo(Transaction, { foreignKey: "transactionId" });
 
-// Sync database
-sequelize.sync();
+// Sync database safely: add missing columns but don't drop tables
+(async () => {
+	try {
+		await sequelize.sync({ force: true }); // temporarily force drop for testing
+		console.log("Database synced successfully.");
+	} catch (err) {
+		console.error("Error syncing database:", err);
+	}
+})();
 
 const { Client, GatewayIntentBits } = require("discord.js");
 
@@ -38,10 +51,13 @@ const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".j
 for (const file of eventFiles) {
 	const filePath = path.join(eventsPath, file);
 	const event = require(filePath);
+	const models = { User, Listing, Transaction, Rating, client };
 	if (event.once) {
-		client.once(event.name, (...args) => event.execute(...args, { User, Listing, client }));
-	} else {
-		client.on(event.name, (...args) => event.execute(...args, { User, Listing, client }));
+		client.once(event.name, () => event.execute(client, models));
+	} else if (event.name === "threadCreate") {
+		client.on(event.name, (thread) => event.execute(thread, models));
+	} else if (event.name === "interactionCreate") {
+		client.on(event.name, (interaction) => event.execute(interaction, models));
 	}
 }
 

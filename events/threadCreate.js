@@ -1,14 +1,31 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const parseThreadName = require("../utils/parseThreadName");
 const WaitStarterMessage = require("../utils/WaitStarterMessage");
+const { Op } = require("sequelize");
 
 module.exports = {
 	name: "threadCreate",
-	async execute(thread, { User, Listing }) {
+	async execute(thread, models = {}) {
+		// Destructure User, Listing, and Transaction from models
+		const { User, Listing, Transaction } = models;
+
+		// Log warning if models are missing but do not crash
+		if (!User || !Listing) {
+			console.warn(
+				"Warning: Database models not provided to threadCreate event. Listings will not be created."
+			);
+		}
+
+		// Wait for the first message in the thread
 		let firstMessage;
-		do {
-			firstMessage = await WaitStarterMessage(thread);
-		} while (!firstMessage);
+		try {
+			do {
+				firstMessage = await WaitStarterMessage(thread);
+			} while (!firstMessage);
+		} catch (err) {
+			console.error("Error fetching first message:", err);
+			return;
+		}
 
 		const parsed = parseThreadName(thread.name);
 		console.log(parsed);
@@ -24,6 +41,34 @@ module.exports = {
 
 		const typeText = parsed.type === "SELL" ? "are SELLING" : "WANT TO BUY";
 		const confirmation = `It looks like you ${typeText} \`${parsed.item}\` in exchange for \`${parsed.offer}\`. Is this correct?`;
+
+		// Create a Listing immediately with status 'pending'
+		let listing;
+		try {
+			if (!User || !Listing) throw new Error("Database models not provided.");
+
+			// Ensure the User exists
+			const [user] = await User.findOrCreate({
+				where: { id: firstMessage.author.id },
+				defaults: { username: firstMessage.author.username },
+			});
+
+			listing = await Listing.create({
+				userId: firstMessage.author.id,
+				region: parsed.region,
+				type: parsed.type,
+				item: parsed.item,
+				offer: parsed.offer,
+				threadId: thread.id,
+				status: "pending", // initial status
+			});
+
+			console.log("Listing created immediately with status 'pending'");
+		} catch (error) {
+			console.error("Error creating initial Listing:", error);
+			thread.send("An error occurred while creating your listing. Please try again.");
+			return;
+		}
 
 		const confirmationMessage = await thread.send({
 			content: confirmation,
@@ -43,7 +88,7 @@ module.exports = {
 				interaction.user &&
 				interaction.customId &&
 				["confirm", "deny"].includes(interaction.customId) &&
-				interaction.user.id === firstMessage?.author?.id // ✅ safe check
+				interaction.user.id === firstMessage?.author?.id
 			);
 		};
 
@@ -54,42 +99,68 @@ module.exports = {
 		collector.on("collect", async (interaction) => {
 			if (!interaction.isButton()) return;
 
-			if (interaction.customId === "confirm") {
-				// Create seller reputation embed
-				const username = firstMessage?.author?.username;
-				const userId = firstMessage?.author?.id;
-
-				// Save to database
-				try {
-					const [user, created] = await User.findOrCreate({
-						where: { id: userId },
-						defaults: { username: username },
-					});
-					await Listing.create({
-						userId: userId,
-						region: parsed.region,
-						type: parsed.type,
-						item: parsed.item,
-						offer: parsed.offer,
-						threadId: thread.id,
-					});
-					console.log("Listing saved to database");
-				} catch (error) {
-					console.error("Error saving to database:", error);
-				}
-
-				const reputationText = `**Seller Reputation** for ${username}\n\n**Confirmed Purchases:** 0\n**Confirmed Sales:** 0\n**Confirmed Trades:** 0`;
-
-				// Update original confirmation message: remove buttons and add embed
+			if (!firstMessage?.author) {
 				await interaction.update({
-					content: reputationText,
-					components: [], // removes buttons
+					content: "Error: could not identify the user who created this thread.",
+					components: [],
 				});
-			} else {
-				// Denied: remove buttons and ask user to fix
+				return;
+			}
+
+			try {
+				if (!listing) throw new Error("Listing not found for this thread.");
+
+				if (interaction.customId === "confirm") {
+					// Calculate reputation
+					let purchasesCount = 0;
+					let salesCount = 0;
+					let tradesCount = 0;
+					if (Transaction) {
+						try {
+							purchasesCount = await Transaction.count({
+								where: { buyerId: firstMessage.author.id, status: "confirmed" },
+							});
+							salesCount = await Transaction.count({
+								where: { sellerId: firstMessage.author.id, status: "confirmed" },
+							});
+							tradesCount = await Transaction.count({
+								where: {
+									[Op.or]: [
+										{ sellerId: firstMessage.author.id },
+										{ buyerId: firstMessage.author.id },
+									],
+									type: { [Op.in]: ["trade", "money+trade"] },
+									status: "confirmed",
+								},
+							});
+						} catch (error) {
+							console.error("Error fetching reputation:", error);
+						}
+					}
+
+					// Update status to confirmed
+					await listing.update({ status: "confirmed" });
+
+					const reputationText = `**Seller Reputation** for <@${firstMessage.author.id}>\n\n**Confirmed Purchases:** ${purchasesCount}\n**Confirmed Sales:** ${salesCount}\n**Confirmed Trades:** ${tradesCount}`;
+
+					await interaction.update({
+						content: reputationText,
+						components: [],
+					});
+				} else {
+					// Denied: update status to denied
+					await listing.update({ status: "denied" });
+
+					await interaction.update({
+						content:
+							"Please edit your forum title to match the following format:\n```[Region] [H/W] Item [H/W] Offer```",
+						components: [],
+					});
+				}
+			} catch (error) {
+				console.error("Error updating Listing:", error);
 				await interaction.update({
-					content:
-						"Please edit your forum title to match the following format:\n```[Region] [H/W] Item [H/W] Offer```",
+					content: "An error occurred while updating your listing. Please try again.",
 					components: [],
 				});
 			}

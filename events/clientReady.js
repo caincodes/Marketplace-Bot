@@ -6,7 +6,7 @@ const path = require("path");
 module.exports = {
 	name: "clientReady",
 	once: true,
-	async execute(client) {
+	async execute(client, models = {}) {
 		console.log(`Logged in as ${client.user.tag}`);
 
 		// Load commands
