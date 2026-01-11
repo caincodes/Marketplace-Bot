@@ -177,40 +177,38 @@ module.exports = {
 					return;
 				}
 
-				if (interaction.customId === "confirm") {
-					// Update status to confirmed
-					await listing.update({ status: "confirmed" });
+				if (interaction.customId === "confirm" || interaction.customId === "trade") {
+					// Determine if trade button was clicked
+					const isTradeButton = interaction.customId === "trade";
 
-					// Update forum tag based on type
-					await updateForumTag(thread, listing.type);
+					// Prepare update data
+					const updateData = { status: "confirmed" };
+					if (isTradeButton) {
+						updateData.type = "TRADE";
+					}
 
-					// Get comprehensive reputation using shared utility
+					// Update listing
+					await listing.update(updateData);
+
+					// Update forum tag
+					const tagType = isTradeButton ? "TRADE" : listing.type;
+					await updateForumTag(thread, tagType);
+
+					// Get reputation
 					const reputationText = await getUserReputation(firstMessage.author.id, {
 						Listing,
 						Transaction,
 						Rating,
 					});
 
+					// Prepare message content
+					const messageContent = isTradeButton
+						? `Trade listing confirmed!\n${reputationText}`
+						: reputationText;
+
+					// Update interaction
 					await interaction.update({
-						content: reputationText,
-						components: [],
-					});
-				} else if (interaction.customId === "trade") {
-					// Update type to TRADE and status to confirmed
-					await listing.update({ type: "TRADE", status: "confirmed" });
-
-					// Update forum tag to "want to trade"
-					await updateForumTag(thread, "TRADE");
-
-					// Get comprehensive reputation using shared utility
-					const reputationText = await getUserReputation(firstMessage.author.id, {
-						Listing,
-						Transaction,
-						Rating,
-					});
-
-					await interaction.update({
-						content: `Trade listing confirmed!\n${reputationText}`,
+						content: messageContent,
 						components: [],
 					});
 				} else {
