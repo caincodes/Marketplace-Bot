@@ -5,10 +5,7 @@ module.exports = {
 		.setName("confirm")
 		.setDescription("Confirm a transaction in this forum post")
 		.addUserOption((option) =>
-			option
-				.setName("other_user")
-				.setDescription("The other user in the transaction")
-				.setRequired(true)
+			option.setName("user").setDescription("The other user in the transaction").setRequired(true)
 		)
 		.addStringOption((option) =>
 			option
@@ -29,7 +26,7 @@ module.exports = {
 			});
 		}
 
-		const otherUser = interaction.options.getUser("other_user");
+		const otherUser = interaction.options.getUser("user");
 		const type = interaction.options.getString("type");
 
 		// Prevent selecting yourself

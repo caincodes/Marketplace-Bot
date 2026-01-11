@@ -66,12 +66,13 @@ module.exports = {
 
 	// Handle the skip rating action
 	async skipRating(interaction, { User, Listing, Transaction, Rating, client }) {
-		const parts = interaction.customId.split("_");
+		// Defer the interaction immediately to avoid timeout
+		await interaction.deferUpdate();
 		const transactionId = parts[2];
 		const raterId = parts[3];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.reply({
+			return await interaction.followUp({
 				content: "You are not authorized to complete this action.",
 				flags: 64,
 			});
@@ -83,7 +84,7 @@ module.exports = {
 				Listing,
 			});
 			if (!transactionData) {
-				return await interaction.reply({
+				return await interaction.followUp({
 					content: "Transaction not found.",
 					flags: 64,
 				});
@@ -100,7 +101,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error skipping rating:", error);
-			await interaction.reply({
+			await interaction.followUp({
 				content: "An error occurred while skipping the rating.",
 				flags: 64,
 			});
@@ -109,12 +110,13 @@ module.exports = {
 
 	// Handle the skip review action
 	async skipReview(interaction, { User, Listing, Transaction, Rating, client }) {
-		const parts = interaction.customId.split("_");
+		// Defer the interaction immediately to avoid timeout
+		await interaction.deferUpdate();
 		const ratingId = parts[2];
 		const raterId = parts[3];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.reply({
+			return await interaction.followUp({
 				content: "You are not authorized to complete this action.",
 				flags: 64,
 			});
@@ -150,7 +152,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error skipping review:", error);
-			await interaction.reply({
+			await interaction.followUp({
 				content: "An error occurred while skipping the review.",
 				flags: 64,
 			});
@@ -159,12 +161,14 @@ module.exports = {
 
 	// Handle the modal submission
 	async submitReview(interaction, { User, Listing, Transaction, Rating, client }) {
+		// Defer the interaction immediately to avoid timeout
+		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
 		const ratingId = parts[2];
 		const raterId = parts[3];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.reply({
+			return await interaction.followUp({
 				content: "You are not authorized to submit this review.",
 				flags: 64,
 			});
@@ -176,7 +180,7 @@ module.exports = {
 
 			const ratingRecord = await Rating.findByPk(ratingId);
 			if (!ratingRecord) {
-				return await interaction.reply({
+				return await interaction.followUp({
 					content: "Rating record not found.",
 					flags: 64,
 				});
@@ -192,7 +196,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error submitting review:", error);
-			await interaction.reply({
+			await interaction.followUp({
 				content: "An error occurred while submitting your review.",
 				flags: 64,
 			});
@@ -232,7 +236,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error completing transaction:", error);
-			await interaction.reply({
+			await interaction.followUp({
 				content: "An error occurred while completing the transaction.",
 				flags: 64,
 			});

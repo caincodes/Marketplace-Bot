@@ -8,13 +8,15 @@ const {
 module.exports = {
 	name: "rateUser",
 	async execute(interaction, { User, Listing, Transaction, Rating, client }) {
+		// Defer the interaction immediately to avoid timeout
+		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
 		const transactionId = parts[2];
 		const raterId = parts[3];
 		const ratingValue = parts[4];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.reply({
+			return await interaction.followUp({
 				content: "You are not authorized to rate for this transaction.",
 				flags: 64,
 			});
@@ -26,7 +28,7 @@ module.exports = {
 				Listing,
 			});
 			if (!transactionData) {
-				return await interaction.reply({
+				return await interaction.followUp({
 					content: "Transaction not found.",
 					flags: 64,
 				});
@@ -73,7 +75,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error handling user rating:", error);
-			await interaction.reply({
+			await interaction.followUp({
 				content: "An error occurred while submitting your rating.",
 				flags: 64,
 			});

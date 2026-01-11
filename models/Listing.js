@@ -28,5 +28,9 @@ module.exports = (sequelize) => {
 			type: Sequelize.ENUM("pending", "confirmed", "denied"),
 			defaultValue: "pending",
 		},
+		closed: {
+			type: Sequelize.BOOLEAN,
+			defaultValue: false,
+		},
 	});
 };

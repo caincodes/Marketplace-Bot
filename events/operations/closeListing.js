@@ -3,12 +3,14 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 module.exports = {
 	name: "closeListing",
 	async execute(interaction, { Listing, client }) {
+		// Defer the interaction immediately to avoid timeout
+		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
 		const listingId = parts[2];
 		const posterId = parts[3];
 
 		if (interaction.user.id !== posterId) {
-			return await interaction.reply({
+			return await interaction.followUp({
 				content: "Only the listing poster can close this listing.",
 				flags: 64,
 			});
@@ -17,15 +19,22 @@ module.exports = {
 		try {
 			const listing = await Listing.findByPk(listingId);
 			if (!listing) {
-				return await interaction.reply({
+				return await interaction.followUp({
 					content: "Listing not found.",
 					flags: 64,
 				});
 			}
 
 			if (listing.userId !== posterId) {
-				return await interaction.reply({
+				return await interaction.followUp({
 					content: "You are not authorized to close this listing.",
+					flags: 64,
+				});
+			}
+
+			if (listing.closed) {
+				return await interaction.followUp({
+					content: "This listing is already closed.",
 					flags: 64,
 				});
 			}
@@ -59,6 +68,9 @@ module.exports = {
 			const newName = `${prefix} ${thread.name}`;
 			await thread.setName(newName);
 
+			// Mark listing as closed in database
+			await listing.update({ closed: true });
+
 			// Update tags - remove all and add "closed"
 			try {
 				const forumChannel = thread.parent;
@@ -80,7 +92,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error closing listing:", error);
-			await interaction.reply({
+			await interaction.followUp({
 				content: "An error occurred while closing the listing.",
 				flags: 64,
 			});

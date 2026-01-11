@@ -4,13 +4,17 @@ const { getForumLink, formatForumLink } = require("../../utils/forumLink");
 module.exports = {
 	name: "confirmTransaction",
 	async execute(interaction, { User, Listing, Transaction, Rating, client }) {
+		// Defer the interaction immediately to avoid timeout
+		await interaction.deferUpdate();
+
 		const parts = interaction.customId.split("_");
 		const transactionId = parts[2];
+		const initiatorId = parts[3];
 		const intendedUserId = parts[4];
 		const action = parts[5];
 
 		if (interaction.user.id !== intendedUserId) {
-			return await interaction.reply({
+			return await interaction.followUp({
 				content: `Only <@${intendedUserId}> can confirm this transaction.`,
 				flags: 64,
 			});
@@ -19,7 +23,7 @@ module.exports = {
 		try {
 			const transaction = await Transaction.findByPk(transactionId);
 			if (!transaction) {
-				return await interaction.reply({
+				return await interaction.followUp({
 					content: "Transaction not found.",
 					flags: 64,
 				});
@@ -128,7 +132,7 @@ module.exports = {
 			}
 		} catch (error) {
 			console.error("Error handling transaction confirmation:", error);
-			await interaction.reply({
+			await interaction.followUp({
 				content: "An error occurred while processing your confirmation.",
 				flags: 64,
 			});

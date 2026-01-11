@@ -17,9 +17,11 @@ module.exports = {
 					const rateHandler = require("./operations/rateUser");
 					await rateHandler.execute(interaction, models);
 				} else if (interaction.customId.startsWith("skip_rating_")) {
+					console.log(`[Button] Routing to skipRating`);
 					const reviewHandler = require("./operations/writeReview");
 					await reviewHandler.skipRating(interaction, models);
 				} else if (interaction.customId.startsWith("write_review_")) {
+					console.log(`[Button] Routing to writeReview execute`);
 					const reviewHandler = require("./operations/writeReview");
 					await reviewHandler.execute(interaction, models);
 				} else if (interaction.customId.startsWith("skip_review_")) {
@@ -36,7 +38,7 @@ module.exports = {
 				await commandHandler.execute(interaction, models);
 			}
 		} catch (error) {
-			console.error("Error in interactionCreate:", error);
+			console.error("[Error] Error in interactionCreate:", error);
 			// Only reply if we haven't already
 			if (!interaction.replied && !interaction.deferred) {
 				try {
@@ -45,7 +47,7 @@ module.exports = {
 						flags: 64,
 					});
 				} catch (replyError) {
-					console.error("Error sending error reply:", replyError);
+					console.error("[Error] Error sending error reply:", replyError);
 				}
 			}
 		}

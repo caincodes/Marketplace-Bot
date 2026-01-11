@@ -38,6 +38,13 @@ module.exports = {
 				});
 			}
 
+			if (listing.closed) {
+				return await interaction.reply({
+					content: "This listing is already closed.",
+					flags: 64,
+				});
+			}
+
 			const reason = interaction.options.getString("reason");
 
 			// Determine prefix based on listing type and reason
@@ -45,7 +52,6 @@ module.exports = {
 			if (reason === "withdrawn") {
 				prefix = "[WITHDRAWN]";
 			} else {
-				// elsewhere
 				switch (listing.type) {
 					case "SELL":
 						prefix = "[SOLD]";
@@ -64,6 +70,9 @@ module.exports = {
 			// Update thread name
 			const newName = `${prefix} ${interaction.channel.name}`;
 			await interaction.channel.setName(newName);
+
+			// Mark listing as closed in database
+			await listing.update({ closed: true });
 
 			// Update tags - remove all and add "closed"
 			try {
