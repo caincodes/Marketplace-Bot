@@ -37,27 +37,26 @@ async function getUserReputation(userId, { Listing, Transaction, Rating }) {
 		response += `- Transactions: \`${buys}\` buys, \`${sells}\` sells, \`${trades}\` trades\n\n`;
 
 		// Fetch ratings for the target user (ratings they've received)
-		const reviews = await Rating.findAll({
+		const ratings = await Rating.findAll({
 			where: {
 				rateeId: userId,
-				review: { [Op.ne]: null },
 			},
 		}).catch(() => []);
 
-		// Calculate reputation and review summary if more than 3 written reviews
-		if (reviews && reviews.length > 3) {
-			const positiveReviews = reviews.filter((r) => r.rating === "positive").length;
-			const negativeReviews = reviews.filter((r) => r.rating === "negative").length;
-			const totalReviews = positiveReviews + negativeReviews;
+		// Calculate reputation based on positive/negative ratings
+		if (ratings && ratings.length > 0) {
+			const positiveRatings = ratings.filter((r) => r.rating === "positive").length;
+			const negativeRatings = ratings.filter((r) => r.rating === "negative").length;
+			const totalRatings = positiveRatings + negativeRatings;
 
 			let reputationPercent = 0;
-			if (totalReviews > 0) {
-				reputationPercent = Math.round((positiveReviews / totalReviews) * 100);
+			if (totalRatings > 0) {
+				reputationPercent = Math.round((positiveRatings / totalRatings) * 100);
 			}
 
-			response += `**Reputation:** \`${reputationPercent}%\` positive based on \`${totalReviews}\` reviews.`;
+			response += `**Reputation:** \`${reputationPercent}%\` positive based on \`${totalRatings}\` ratings.`;
 		} else {
-			response += "User doesn't have enough reviews to display reputation.";
+			response += "User doesn't have any ratings yet.";
 		}
 
 		return response;
