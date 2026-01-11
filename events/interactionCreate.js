@@ -16,6 +16,9 @@ module.exports = {
 				} else if (interaction.customId.startsWith("rate_user_")) {
 					const rateHandler = require("./operations/rateUser");
 					await rateHandler.execute(interaction, models);
+				} else if (interaction.customId.startsWith("skip_rating_")) {
+					const reviewHandler = require("./operations/writeReview");
+					await reviewHandler.skipRating(interaction, models);
 				} else if (interaction.customId.startsWith("write_review_")) {
 					const reviewHandler = require("./operations/writeReview");
 					await reviewHandler.execute(interaction, models);

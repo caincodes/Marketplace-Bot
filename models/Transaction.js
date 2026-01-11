@@ -39,5 +39,9 @@ module.exports = (sequelize) => {
 			type: Sequelize.STRING,
 			allowNull: true,
 		},
+		initiatorId: {
+			type: Sequelize.STRING,
+			allowNull: true,
+		},
 	});
 };

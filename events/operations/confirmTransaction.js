@@ -1,4 +1,5 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { getForumLink, formatForumLink } = require("../../utils/forumLink");
 
 module.exports = {
 	name: "confirmTransaction",
@@ -26,10 +27,12 @@ module.exports = {
 
 			if (action === "confirm") {
 				// Immediately confirm the transaction
+				const listing = await Listing.findByPk(transaction.listingId);
 				await transaction.update({
 					status: "confirmed",
 					confirmations: [interaction.user.id],
-					forumPostId: interaction.channel?.id || transaction.forumPostId,
+					forumPostId: listing?.threadId || transaction.forumPostId,
+					initiatorId: interaction.user.id, // Track who initiated
 				});
 
 				// Send message to forum post
@@ -40,14 +43,6 @@ module.exports = {
 						if (channel) {
 							await channel.send({
 								content: `🎉 <@${transaction.buyerId}> purchased an item from <@${transaction.sellerId}>!`,
-								components: [
-									new ActionRowBuilder().addComponents(
-										new ButtonBuilder()
-											.setCustomId(`close_listing_${listing.id}_${listing.userId}`)
-											.setLabel("Close Listing")
-											.setStyle(ButtonStyle.Secondary)
-									),
-								],
 							});
 						}
 					}
@@ -55,51 +50,73 @@ module.exports = {
 					console.error("Error sending purchase message to forum post:", error);
 				}
 
-				// Update the confirmation message
-				await interaction.update({
-					content: `✅ Transaction confirmed between <@${transaction.sellerId}> and <@${transaction.buyerId}>!`,
-					components: [],
-				});
+				// Send rating prompt to the other user (non-initiator)
+				const otherUserId =
+					interaction.user.id === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
+				try {
+					const otherUser = await client.users.fetch(otherUserId);
+					const forumLink = await getForumLink(transaction, listing, client);
+					const forumLinkText = formatForumLink(forumLink);
 
-				// Send rating prompts to both users
-				const listing = await Listing.findByPk(transaction.listingId);
-				const forumChannelId = transaction.forumPostId || listing?.threadId;
-				const guildId =
-					interaction.guildId ||
-					(forumChannelId ? (await client.channels.fetch(forumChannelId))?.guild?.id : null) ||
-					null;
+					const ratingMessage = `✅ **Transaction Confirmed!**\n${forumLinkText}\nHow was your experience with <@${interaction.user.id}>?`;
 
-				for (const userId of [transaction.sellerId, transaction.buyerId]) {
-					const otherUserId =
-						userId === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
-					try {
-						const user = await client.users.fetch(userId);
-						// Only include transaction confirmed + forum link for the other user
-						const confirmationMessage =
-							interaction.user.id !== userId && guildId && forumChannelId
-								? `✅ **Transaction Confirmed!**\n\nhttps://discord.com/channels/${guildId}/${forumChannelId}\n\n`
-								: "";
+					// Send NEW DM to the non-initiator with rating buttons
+					await otherUser.send({
+						content: ratingMessage,
+						components: [
+							new ActionRowBuilder().addComponents(
+								new ButtonBuilder()
+									.setCustomId(`rate_user_${transaction.id}_${otherUserId}_positive`)
+									.setLabel("Positive")
+									.setStyle(ButtonStyle.Success)
+									.setEmoji("👍"),
+								new ButtonBuilder()
+									.setCustomId(`rate_user_${transaction.id}_${otherUserId}_negative`)
+									.setLabel("Negative")
+									.setStyle(ButtonStyle.Danger)
+									.setEmoji("👎"),
+								new ButtonBuilder()
+									.setCustomId(`skip_rating_${transaction.id}_${otherUserId}`)
+									.setLabel("Skip")
+									.setStyle(ButtonStyle.Secondary)
+									.setEmoji("⏭️")
+							),
+						],
+					});
+				} catch (error) {
+					console.error(`Error sending rating prompt to ${otherUserId}:`, error);
+				}
 
-						await user.send({
-							content: `${confirmationMessage}How was your experience with <@${otherUserId}>?`,
-							components: [
-								new ActionRowBuilder().addComponents(
-									new ButtonBuilder()
-										.setCustomId(`rate_user_${transaction.id}_${userId}_positive`)
-										.setLabel("Positive")
-										.setStyle(ButtonStyle.Success)
-										.setEmoji("👍"),
-									new ButtonBuilder()
-										.setCustomId(`rate_user_${transaction.id}_${userId}_negative`)
-										.setLabel("Negative")
-										.setStyle(ButtonStyle.Danger)
-										.setEmoji("👎")
-								),
-							],
-						});
-					} catch (error) {
-						console.error(`Error sending rating prompt to ${userId}:`, error);
-					}
+				// For initiator: update their DM with rating prompt
+				try {
+					const forumLink = await getForumLink(transaction, listing, client);
+					const forumLinkText = formatForumLink(forumLink);
+					const ratingMessage = `✅ **Transaction Confirmed!**\n${forumLinkText}\nHow was your experience with <@${otherUserId}>?`;
+
+					await interaction.update({
+						content: ratingMessage,
+						components: [
+							new ActionRowBuilder().addComponents(
+								new ButtonBuilder()
+									.setCustomId(`rate_user_${transaction.id}_${interaction.user.id}_positive`)
+									.setLabel("Positive")
+									.setStyle(ButtonStyle.Success)
+									.setEmoji("👍"),
+								new ButtonBuilder()
+									.setCustomId(`rate_user_${transaction.id}_${interaction.user.id}_negative`)
+									.setLabel("Negative")
+									.setStyle(ButtonStyle.Danger)
+									.setEmoji("👎"),
+								new ButtonBuilder()
+									.setCustomId(`skip_rating_${transaction.id}_${interaction.user.id}`)
+									.setLabel("Skip")
+									.setStyle(ButtonStyle.Secondary)
+									.setEmoji("⏭️")
+							),
+						],
+					});
+				} catch (error) {
+					console.error(`Error updating initiator's DM:`, error);
 				}
 			} else if (action === "deny") {
 				// Cancel the transaction

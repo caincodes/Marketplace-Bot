@@ -1,4 +1,9 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const {
+	getForumLink,
+	fetchTransactionAndListing,
+	formatForumLink,
+} = require("../../utils/forumLink");
 
 module.exports = {
 	name: "rateUser",
@@ -16,14 +21,18 @@ module.exports = {
 		}
 
 		try {
-			const transaction = await Transaction.findByPk(transactionId);
-			if (!transaction) {
+			const transactionData = await fetchTransactionAndListing(transactionId, {
+				Transaction,
+				Listing,
+			});
+			if (!transactionData) {
 				return await interaction.reply({
 					content: "Transaction not found.",
 					flags: 64,
 				});
 			}
 
+			const { transaction, listing } = transactionData;
 			const rateeId = raterId === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
 
 			// Create rating record
@@ -39,12 +48,12 @@ module.exports = {
 			const currentRatingIds = transaction.ratingIds || [];
 			await transaction.update({ ratingIds: [...currentRatingIds, ratingRecord.id] });
 
-			const listing = await Listing.findByPk(transaction.listingId);
 			const currentListingRatingIds = listing.ratingIds || [];
 			await listing.update({ ratingIds: [...currentListingRatingIds, ratingRecord.id] });
 
 			// Update the message with rating confirmation and review options
-			const ratingEmoji = ratingValue === "positive" ? "👍" : "👎";
+			const forumLink = await getForumLink(transaction, listing, client);
+			const forumLinkText = formatForumLink(forumLink);
 			const reviewButtons = new ActionRowBuilder().addComponents(
 				new ButtonBuilder()
 					.setCustomId(`write_review_${ratingRecord.id}_${raterId}`)
@@ -59,7 +68,7 @@ module.exports = {
 			);
 
 			await interaction.update({
-				content: `${ratingEmoji} **Rating submitted!**\n\nWould you like to write an optional anonymous review of <@${rateeId}>?`,
+				content: `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating submitted!**\n\nWould you like to write an optional, anonymous review of <@${rateeId}>?`,
 				components: [reviewButtons],
 			});
 		} catch (error) {

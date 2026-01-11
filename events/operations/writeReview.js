@@ -6,6 +6,16 @@ const {
 	TextInputBuilder,
 	TextInputStyle,
 } = require("discord.js");
+const {
+	getForumLink,
+	fetchTransactionAndListing,
+	formatForumLink,
+} = require("../../utils/forumLink");
+
+// Helper to get rating emoji
+function getRatingEmoji(rating) {
+	return rating === "positive" ? "👍" : "👎";
+}
 
 module.exports = {
 	name: "writeReview",
@@ -54,6 +64,49 @@ module.exports = {
 		}
 	},
 
+	// Handle the skip rating action
+	async skipRating(interaction, { User, Listing, Transaction, Rating, client }) {
+		const parts = interaction.customId.split("_");
+		const transactionId = parts[2];
+		const raterId = parts[3];
+
+		if (interaction.user.id !== raterId) {
+			return await interaction.reply({
+				content: "You are not authorized to complete this action.",
+				flags: 64,
+			});
+		}
+
+		try {
+			const transactionData = await fetchTransactionAndListing(transactionId, {
+				Transaction,
+				Listing,
+			});
+			if (!transactionData) {
+				return await interaction.reply({
+					content: "Transaction not found.",
+					flags: 64,
+				});
+			}
+
+			const { transaction, listing } = transactionData;
+			const forumLink = await getForumLink(transaction, listing, client);
+			const forumLinkText = formatForumLink(forumLink);
+
+			// Update DM to show rating skipped
+			await interaction.update({
+				content: `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating skipped**`,
+				components: [],
+			});
+		} catch (error) {
+			console.error("Error skipping rating:", error);
+			await interaction.reply({
+				content: "An error occurred while skipping the rating.",
+				flags: 64,
+			});
+		}
+	},
+
 	// Handle the skip review action
 	async skipReview(interaction, { User, Listing, Transaction, Rating, client }) {
 		const parts = interaction.customId.split("_");
@@ -79,11 +132,21 @@ module.exports = {
 			// Mark review as completed (null means no review written)
 			await ratingRecord.update({ review: null });
 
-			await this.checkTransactionCompletion(interaction, ratingRecord.transactionId, client, {
-				User,
-				Listing,
+			// Get transaction and listing for forum link
+			const transactionData = await fetchTransactionAndListing(ratingRecord.transactionId, {
 				Transaction,
-				Rating,
+				Listing,
+			});
+			if (!transactionData) return;
+
+			const { transaction, listing } = transactionData;
+			const forumLink = await getForumLink(transaction, listing, client);
+			const forumLinkText = formatForumLink(forumLink);
+
+			// Update DM to show rating submitted with review skipped
+			await interaction.update({
+				content: `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating submitted**\n✅ **Review skipped**`,
+				components: [],
 			});
 		} catch (error) {
 			console.error("Error skipping review:", error);
@@ -140,30 +203,28 @@ module.exports = {
 	async checkTransactionCompletion(interaction, transactionId, client, models) {
 		try {
 			const { Listing, Transaction, Rating } = models;
-			const transaction = await Transaction.findByPk(transactionId);
-			if (!transaction) return;
+			const transactionData = await fetchTransactionAndListing(transactionId, {
+				Transaction,
+				Listing,
+			});
+			if (!transactionData) return;
 
-			// For now, complete the transaction immediately when a review action is taken
-			// In a more sophisticated system, we'd wait for all parties to complete their reviews
-			let completionMessage = interaction.isModalSubmit()
-				? "✅ Review Submitted!\n✅ **Transaction Complete!**"
-				: "✅ Review Skipped!\n✅ **Transaction Complete!**";
+			const { transaction, listing } = transactionData;
+			const forumLink = await getForumLink(transaction, listing, client);
+			const forumLinkText = formatForumLink(forumLink);
 
-			// Add link to forum post
-			const listing = await Listing.findByPk(transaction.listingId);
-			const forumChannelId = transaction.forumPostId || listing?.threadId;
+			// Get the rating for this user to show the emoji
+			const userRating = await Rating.findOne({
+				where: {
+					transactionId,
+					raterId: interaction.user.id,
+				},
+			});
 
-			if (forumChannelId) {
-				try {
-					const channel = await client.channels.fetch(forumChannelId);
-					const guildId = channel?.guild?.id;
-					if (guildId) {
-						completionMessage += `\n\n[View Forum Post](https://discord.com/channels/${guildId}/${forumChannelId})`;
-					}
-				} catch (error) {
-					console.error("Error fetching forum channel:", error);
-				}
-			}
+			const reviewStatus = userRating.review ? "✅ **Review submitted**" : "✅ **Review skipped**";
+
+			// Update DM with final confirmation
+			const completionMessage = `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating submitted**\n${reviewStatus}`;
 
 			await interaction.update({
 				content: completionMessage,

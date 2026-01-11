@@ -74,8 +74,8 @@ module.exports = {
 				console.error("Error updating forum tags:", error);
 			}
 
-			await interaction.update({
-				content: `✅ Listing closed! Thread renamed to "${newName}" and tagged as closed.`,
+			await interaction.reply({
+				content: `✅ Listing closed!`,
 				components: [],
 			});
 		} catch (error) {

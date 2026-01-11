@@ -10,7 +10,7 @@ module.exports = {
 				.setDescription("Reason for closing the listing")
 				.setRequired(true)
 				.addChoices(
-					{ name: "Sold/Found Item Elsewhere", value: "elsewhere" },
+					{ name: "Sold/Found Item", value: "sold" },
 					{ name: "No Longer Needed", value: "withdrawn" }
 				)
 		),
@@ -81,7 +81,7 @@ module.exports = {
 			}
 
 			await interaction.reply({
-				content: `✅ Listing closed! Thread renamed to "${newName}" and tagged as closed.`,
+				content: `✅ Listing closed!`,
 				flags: 64,
 			});
 		} catch (error) {
