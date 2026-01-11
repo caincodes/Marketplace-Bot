@@ -19,27 +19,14 @@ async function testClientReadyEvent() {
 		setToken: () => mockRest,
 	};
 
-	// Mock dependencies
-	const originalRest = require("@discordjs/rest").REST;
-	const originalRoutes = require("discord-api-types/v9").Routes;
-	const originalFs = require("fs");
-	const originalPath = require("path");
+	// Mock dependencies using local overrides
+	const fs = require("fs");
+	const path = require("path");
+	const originalReaddirSync = fs.readdirSync;
+	const originalJoin = path.join;
 
-	require("@discordjs/rest").REST = function () {
-		return mockRest;
-	};
-	require("discord-api-types/v9").Routes = {
-		applicationCommands: () => "test-route",
-	};
-	require("fs").readdirSync = () => ["test-command.js"];
-	require("path").join = (...args) => args.join("/");
-	require.cache[require.resolve("../commands/test-command")] = {
-		exports: {
-			name: "test",
-			description: "Test command",
-			options: [],
-		},
-	};
+	fs.readdirSync = () => ["confirm.js", "history.js"]; // Use real command files
+	path.join = (...args) => args.join("/");
 
 	try {
 		console.log("Test 1: Successful client ready");
@@ -58,11 +45,8 @@ async function testClientReadyEvent() {
 		console.error("ClientReady event test failed:", error);
 	} finally {
 		// Restore originals
-		require("@discordjs/rest").REST = originalRest;
-		require("discord-api-types/v9").Routes = originalRoutes;
-		require("fs").readdirSync = originalFs.readdirSync;
-		require("path").join = originalPath.join;
-		delete require.cache[require.resolve("../commands/test-command")];
+		fs.readdirSync = originalReaddirSync;
+		path.join = originalJoin;
 	}
 }
 

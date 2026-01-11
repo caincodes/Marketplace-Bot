@@ -1,13 +1,45 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const parseThreadName = require("../utils/parseThreadName");
 const WaitStarterMessage = require("../utils/WaitStarterMessage");
-const { Op } = require("sequelize");
+const { getUserReputation } = require("../utils/reputation");
+
+// Helper function to update forum tags based on listing type
+async function updateForumTag(thread, type) {
+	try {
+		const forumChannel = thread.parent;
+		if (!forumChannel || forumChannel.type !== 15) return; // Not a forum channel
+
+		let tagName;
+		switch (type) {
+			case "SELL":
+				tagName = "for sale";
+				break;
+			case "BUY":
+				tagName = "want to buy";
+				break;
+			case "TRADE":
+				tagName = "want to trade";
+				break;
+			default:
+				return;
+		}
+
+		const tag = forumChannel.availableTags.find(
+			(t) => t.name.toLowerCase() === tagName.toLowerCase()
+		);
+		if (tag) {
+			await thread.setAppliedTags([tag.id]);
+		}
+	} catch (error) {
+		console.error("Error updating forum tag:", error);
+	}
+}
 
 module.exports = {
 	name: "threadCreate",
 	async execute(thread, models = {}) {
-		// Destructure User, Listing, and Transaction from models
-		const { User, Listing, Transaction } = models;
+		// Destructure User, Listing, Transaction, and Rating from models
+		const { User, Listing, Transaction, Rating } = models;
 
 		// Log warning if models are missing but do not crash
 		if (!User || !Listing) {
@@ -28,7 +60,6 @@ module.exports = {
 		}
 
 		const parsed = parseThreadName(thread.name);
-		console.log(parsed);
 
 		if (!parsed) return;
 
@@ -63,7 +94,21 @@ module.exports = {
 				status: "pending", // initial status
 			});
 
-			console.log("Listing created immediately with status 'pending'");
+			// Apply "pending" tag to the forum thread
+			try {
+				const forumChannel = thread.parent;
+				if (forumChannel && forumChannel.type === 15) {
+					// Forum channel type
+					const pendingTag = forumChannel.availableTags.find(
+						(tag) => tag.name.toLowerCase() === "pending"
+					);
+					if (pendingTag) {
+						await thread.setAppliedTags([pendingTag.id]);
+					}
+				}
+			} catch (error) {
+				console.error("Error applying pending tag:", error);
+			}
 		} catch (error) {
 			console.error("Error creating initial Listing:", error);
 			thread.send("An error occurred while creating your listing. Please try again.");
@@ -78,6 +123,7 @@ module.exports = {
 						.setCustomId("confirm")
 						.setLabel("Confirm")
 						.setStyle(ButtonStyle.Success),
+					new ButtonBuilder().setCustomId("trade").setLabel("Trade").setStyle(ButtonStyle.Primary),
 					new ButtonBuilder().setCustomId("deny").setLabel("Deny").setStyle(ButtonStyle.Danger)
 				),
 			],
@@ -87,7 +133,7 @@ module.exports = {
 			return (
 				interaction.user &&
 				interaction.customId &&
-				["confirm", "deny"].includes(interaction.customId) &&
+				["confirm", "trade", "deny"].includes(interaction.customId) &&
 				interaction.user.id === firstMessage?.author?.id
 			);
 		};
@@ -132,49 +178,48 @@ module.exports = {
 				}
 
 				if (interaction.customId === "confirm") {
-					// Calculate reputation
-					let purchasesCount = 0;
-					let salesCount = 0;
-					let tradesCount = 0;
-					if (Transaction) {
-						try {
-							purchasesCount = await Transaction.count({
-								where: { buyerId: firstMessage.author.id, status: "confirmed" },
-							});
-							salesCount = await Transaction.count({
-								where: { sellerId: firstMessage.author.id, status: "confirmed" },
-							});
-							tradesCount = await Transaction.count({
-								where: {
-									[Op.or]: [
-										{ sellerId: firstMessage.author.id },
-										{ buyerId: firstMessage.author.id },
-									],
-									type: { [Op.in]: ["trade", "money+trade"] },
-									status: "confirmed",
-								},
-							});
-						} catch (error) {
-							console.error("Error fetching reputation:", error);
-						}
-					}
-
 					// Update status to confirmed
 					await listing.update({ status: "confirmed" });
 
-					const reputationText = `**Seller Reputation** for <@${firstMessage.author.id}>\n\n**Confirmed Purchases:** ${purchasesCount}\n**Confirmed Sales:** ${salesCount}\n**Confirmed Trades:** ${tradesCount}`;
+					// Update forum tag based on type
+					await updateForumTag(thread, listing.type);
+
+					// Get comprehensive reputation using shared utility
+					const reputationText = await getUserReputation(firstMessage.author.id, {
+						Listing,
+						Transaction,
+						Rating,
+					});
 
 					await interaction.update({
 						content: reputationText,
 						components: [],
 					});
+				} else if (interaction.customId === "trade") {
+					// Update type to TRADE and status to confirmed
+					await listing.update({ type: "TRADE", status: "confirmed" });
+
+					// Update forum tag to "want to trade"
+					await updateForumTag(thread, "TRADE");
+
+					// Get comprehensive reputation using shared utility
+					const reputationText = await getUserReputation(firstMessage.author.id, {
+						Listing,
+						Transaction,
+						Rating,
+					});
+
+					await interaction.update({
+						content: `Trade listing confirmed!\n${reputationText}`,
+						components: [],
+					});
 				} else {
-					// Denied: update status to denied
-					await listing.update({ status: "denied" });
+					// Denied: keep status as pending so user can edit and get re-prompted
+					await listing.update({ status: "pending" });
 
 					await interaction.update({
 						content:
-							"Please edit your forum title to match the following format:\n```[Region] [H/W] Item [H/W] Offer```",
+							":warning: Your listing will remain pending. Please edit your forum title to match the format:\n```[Region] [H/W] Item [H/W] Offer```",
 						components: [],
 					});
 				}

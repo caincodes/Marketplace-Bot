@@ -28,7 +28,20 @@ async function testHistoryCommand() {
 		],
 	};
 
-	const models = { Listing: mockListing, User: mockUser, Rating: mockRating };
+	const mockTransaction = {
+		findAll: async () => [
+			{ buyerId: "123456789", type: "purchase" },
+			{ sellerId: "123456789", type: "purchase" },
+			{ buyerId: "123456789", sellerId: "other", type: "trade" },
+		],
+	};
+
+	const models = {
+		Listing: mockListing,
+		User: mockUser,
+		Rating: mockRating,
+		Transaction: mockTransaction,
+	};
 
 	// Mock interaction
 	const mockInteraction = {

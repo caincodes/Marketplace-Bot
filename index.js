@@ -56,6 +56,8 @@ for (const file of eventFiles) {
 		client.once(event.name, () => event.execute(client, models));
 	} else if (event.name === "threadCreate") {
 		client.on(event.name, (thread) => event.execute(thread, models));
+	} else if (event.name === "threadUpdate") {
+		client.on(event.name, (oldThread, newThread) => event.execute(oldThread, newThread, models));
 	} else if (event.name === "interactionCreate") {
 		client.on(event.name, (interaction) => event.execute(interaction, models));
 	}

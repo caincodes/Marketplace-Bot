@@ -31,5 +31,13 @@ module.exports = (sequelize) => {
 			type: Sequelize.JSON,
 			defaultValue: [],
 		},
+		confirmations: {
+			type: Sequelize.JSON,
+			defaultValue: [],
+		},
+		forumPostId: {
+			type: Sequelize.STRING,
+			allowNull: true,
+		},
 	});
 };

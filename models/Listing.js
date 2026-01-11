@@ -24,5 +24,9 @@ module.exports = (sequelize) => {
 			type: Sequelize.JSON,
 			defaultValue: [],
 		},
+		status: {
+			type: Sequelize.ENUM("pending", "confirmed", "denied"),
+			defaultValue: "pending",
+		},
 	});
 };

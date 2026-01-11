@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",
     "sequelize": "^6.37.7",

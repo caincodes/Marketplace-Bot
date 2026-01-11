@@ -46,6 +46,8 @@ async function testInteractionCreateEvent() {
 		console.log("Test 1: Command interaction");
 		const commandInteraction = {
 			isCommand: () => true,
+			isButton: () => false,
+			isModalSubmit: () => false,
 			commandName: "confirm",
 			channel: { isThread: () => false },
 			reply: async (options) => console.log("Command reply:", options.content),
@@ -57,7 +59,7 @@ async function testInteractionCreateEvent() {
 		const confirmButtonInteraction = {
 			isCommand: () => false,
 			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_user2_confirm",
+			customId: "confirm_transaction_1_user1_user2_confirm",
 			user: { id: "user2" },
 			update: async (options) => console.log("Button update:", options.content),
 		};
@@ -68,7 +70,7 @@ async function testInteractionCreateEvent() {
 		const denyButtonInteraction = {
 			isCommand: () => false,
 			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_user2_deny",
+			customId: "confirm_transaction_1_user1_user2_deny",
 			user: { id: "user2" },
 			update: async (options) => console.log("Button update:", options.content),
 		};
@@ -104,7 +106,7 @@ async function testInteractionCreateEvent() {
 		const unauthorizedInteraction = {
 			isCommand: () => false,
 			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_user2_confirm",
+			customId: "confirm_transaction_1_user1_user2_confirm",
 			user: { id: "unauthorized" },
 			reply: async (options) => console.log("Unauthorized reply:", options.content),
 		};

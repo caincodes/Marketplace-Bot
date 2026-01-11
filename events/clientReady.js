@@ -35,14 +35,10 @@ module.exports = {
 			commands.push(commandData);
 		}
 
-		// Register slash commands
 		const rest = new REST({ version: "9" }).setToken(process.env.BOT_TOKEN);
 
 		try {
-			console.log("Started refreshing application (/) commands.");
-
 			await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-
 			console.log("Successfully reloaded application (/) commands.");
 		} catch (error) {
 			console.error(error);

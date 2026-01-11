@@ -32,6 +32,22 @@ module.exports = {
 		const otherUser = interaction.options.getUser("other_user");
 		const type = interaction.options.getString("type");
 
+		// Prevent selecting yourself
+		if (otherUser.id === interaction.user.id) {
+			return await interaction.reply({
+				content: "You cannot confirm a transaction with yourself.",
+				flags: 64,
+			});
+		}
+
+		// Prevent selecting a bot
+		if (otherUser.bot) {
+			return await interaction.reply({
+				content: "You cannot confirm a transaction with a bot.",
+				flags: 64,
+			});
+		}
+
 		try {
 			const listing = await Listing.findOne({ where: { threadId: interaction.channel.id } });
 			if (!listing) {
@@ -41,12 +57,15 @@ module.exports = {
 				});
 			}
 
-			const isSeller = interaction.user.id === listing.userId;
-			let sellerId, buyerId;
+			// Determine if initiator is the seller
+			const isInitiatorSeller = interaction.user.id === listing.userId;
 
-			if (isSeller) {
+			let sellerId, buyerId, recipient;
+
+			if (isInitiatorSeller) {
 				sellerId = interaction.user.id;
 				buyerId = otherUser.id;
+				recipient = otherUser; // Send confirmation to buyer
 			} else {
 				buyerId = interaction.user.id;
 				sellerId = otherUser.id;
@@ -56,6 +75,7 @@ module.exports = {
 						flags: 64,
 					});
 				}
+				recipient = otherUser; // Send confirmation to seller
 			}
 
 			const transaction = await Transaction.create({
@@ -70,33 +90,34 @@ module.exports = {
 			const currentTransactionIds = listing.transactionIds || [];
 			await listing.update({ transactionIds: [...currentTransactionIds, transaction.id] });
 
-			let confirmationMessage;
-
+			let confirmationMessage = "";
 			if (type === "purchase") {
-				if (interaction.user.id === listing.userId) {
-					// Poster initiated the command
-					confirmationMessage = `<@${otherUser.id}>, please confirm the purchase of ${listing.item} for ${listing.offer}.`;
+				if (isInitiatorSeller) {
+					// Seller is asking buyer to confirm purchase
+					confirmationMessage = `<@${buyerId}>, please confirm your purchase from <@${sellerId}>.`;
 				} else {
-					// Client initiated the command
-					confirmationMessage = `<@${listing.userId}>, please confirm the sale of ${listing.item} for ${listing.offer}.`;
+					// Buyer is asking seller to confirm sale
+					confirmationMessage = `<@${sellerId}>, please confirm your sale to <@${buyerId}>.`;
 				}
 			} else if (type === "trade" || type === "money+trade") {
-				confirmationMessage = `<@${otherUser.id}>, please confirm the trade of ${listing.item} for ${listing.offer}.`;
+				confirmationMessage = `<@${recipient.id}>, please confirm your trade with <@${
+					recipient.id === buyerId ? sellerId : buyerId
+				}>.`;
 			}
 
-			const confirmMessage = await interaction.channel.send({
-				content: confirmationMessage,
+			await recipient.send({
+				content: `Listing: https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}\n\n${confirmationMessage}`,
 				components: [
 					new ActionRowBuilder().addComponents(
 						new ButtonBuilder()
 							.setCustomId(
-								`confirm_transaction_${transaction.id}_${interaction.user.id}_${otherUser.id}_${otherUser.id}_confirm`
+								`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_confirm`
 							)
 							.setLabel("Confirm Transaction")
 							.setStyle(ButtonStyle.Success),
 						new ButtonBuilder()
 							.setCustomId(
-								`confirm_transaction_${transaction.id}_${interaction.user.id}_${otherUser.id}_${otherUser.id}_deny`
+								`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_deny`
 							)
 							.setLabel("Cancel")
 							.setStyle(ButtonStyle.Danger)
