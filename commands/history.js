@@ -5,7 +5,7 @@ const { getUserReputation } = require("../utils/reputation");
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("history")
-		.setDescription("View your listing history or another user's history")
+		.setDescription("View your (or another user's) marketplace history")
 		.addUserOption((option) =>
 			option.setName("user").setDescription("The user to view history for").setRequired(false)
 		),

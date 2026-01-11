@@ -3,7 +3,7 @@ const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = re
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("close")
-		.setDescription("Close your listing")
+		.setDescription("Close marketplace listing (use inside your forum post)")
 		.addStringOption((option) =>
 			option
 				.setName("reason")

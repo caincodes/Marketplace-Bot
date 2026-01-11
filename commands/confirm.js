@@ -3,7 +3,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = re
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("confirm")
-		.setDescription("Confirm a transaction in this forum post")
+		.setDescription("Confirm a marketplace transaction (use inside your forum post)")
 		.addUserOption((option) =>
 			option.setName("user").setDescription("The other user in the transaction").setRequired(true)
 		)
