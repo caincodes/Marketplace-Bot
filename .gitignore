@@ -1,6 +1,7 @@
 .env
 node_modules/*
 db.sqlite
+settings.json
 .vscode/*
 .vscode/
 .DS_Store
