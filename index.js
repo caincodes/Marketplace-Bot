@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 const token = process.env.BOT_TOKEN;
 const Sequelize = require("sequelize");
 const fs = require("fs");
@@ -27,7 +27,7 @@ Rating.belongsTo(Transaction, { foreignKey: "transactionId" });
 // Sync database safely: add missing columns but don't drop tables
 (async () => {
 	try {
-		await sequelize.sync({ force: true }); // temporarily force drop for testing
+		await sequelize.sync(); // Safe sync - adds missing columns/tables without dropping existing data
 		console.log("Database synced successfully.");
 	} catch (err) {
 		console.error("Error syncing database:", err);

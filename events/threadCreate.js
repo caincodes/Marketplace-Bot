@@ -40,7 +40,7 @@ module.exports = {
 		}
 
 		const typeText = parsed.type === "SELL" ? "are SELLING" : "WANT TO BUY";
-		const confirmation = `It looks like you ${typeText} \`${parsed.item}\` in exchange for \`${parsed.offer}\`. Is this correct?`;
+		const confirmation = `<@${firstMessage.author.id}> It looks like you ${typeText} \`${parsed.item}\` in exchange for \`${parsed.offer}\`. Is this correct?`;
 
 		// Create a Listing immediately with status 'pending'
 		let listing;
@@ -99,6 +99,15 @@ module.exports = {
 		collector.on("collect", async (interaction) => {
 			if (!interaction.isButton()) return;
 
+			// Check if the user is the thread starter
+			if (interaction.user.id !== firstMessage?.author?.id) {
+				await interaction.reply({
+					content: "Only the listing author can respond to this confirmation.",
+					flags: 64,
+				});
+				return;
+			}
+
 			if (!firstMessage?.author) {
 				await interaction.update({
 					content: "Error: could not identify the user who created this thread.",
@@ -108,7 +117,19 @@ module.exports = {
 			}
 
 			try {
-				if (!listing) throw new Error("Listing not found for this thread.");
+				if (!listing && Listing) {
+					// Attempt to reload the listing from the database in case of bot restart
+					listing = await Listing.findOne({ where: { threadId: thread.id } });
+				}
+
+				if (!listing) {
+					await interaction.update({
+						content:
+							"No listing found for this forum post. It may have been lost due to a bot restart or database issue.",
+						components: [],
+					});
+					return;
+				}
 
 				if (interaction.customId === "confirm") {
 					// Calculate reputation

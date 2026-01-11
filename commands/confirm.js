@@ -16,9 +16,9 @@ module.exports = {
 				.setDescription("Type of transaction")
 				.setRequired(true)
 				.addChoices(
-					{ name: "Purchase", value: "purchase" },
+					{ name: "Purchase / Sale", value: "purchase" },
 					{ name: "Trade", value: "trade" },
-					{ name: "Money + Trade", value: "money+trade" }
+					{ name: "Trade + Money", value: "money+trade" }
 				)
 		),
 	async execute(interaction, { Listing, Transaction, client }) {
@@ -70,8 +70,22 @@ module.exports = {
 			const currentTransactionIds = listing.transactionIds || [];
 			await listing.update({ transactionIds: [...currentTransactionIds, transaction.id] });
 
+			let confirmationMessage;
+
+			if (type === "purchase") {
+				if (interaction.user.id === listing.userId) {
+					// Poster initiated the command
+					confirmationMessage = `<@${otherUser.id}>, please confirm the purchase of ${listing.item} for ${listing.offer}.`;
+				} else {
+					// Client initiated the command
+					confirmationMessage = `<@${listing.userId}>, please confirm the sale of ${listing.item} for ${listing.offer}.`;
+				}
+			} else if (type === "trade" || type === "money+trade") {
+				confirmationMessage = `<@${otherUser.id}>, please confirm the trade of ${listing.item} for ${listing.offer}.`;
+			}
+
 			const confirmMessage = await interaction.channel.send({
-				content: `<@${otherUser.id}>, please confirm the **${type}** of **${listing.type}** ${listing.item} for ${listing.offer}.`,
+				content: confirmationMessage,
 				components: [
 					new ActionRowBuilder().addComponents(
 						new ButtonBuilder()
