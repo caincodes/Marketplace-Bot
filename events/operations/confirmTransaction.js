@@ -62,7 +62,7 @@ module.exports = {
 					const forumLink = await getForumLink(transaction, listing, client);
 					const forumLinkText = formatForumLink(forumLink);
 
-					const ratingMessage = `✅ **Transaction Confirmed!**\n${forumLinkText}\nHow was your experience with <@${interaction.user.id}>?`;
+					const ratingMessage = `✅ **Transaction confirmed with <@${interaction.user.id}>!**\n${forumLinkText}\nHow was your experience with <@${interaction.user.id}>?`;
 
 					// Send NEW DM to the non-initiator with rating buttons
 					await otherUser.send({
@@ -95,9 +95,9 @@ module.exports = {
 				try {
 					const forumLink = await getForumLink(transaction, listing, client);
 					const forumLinkText = formatForumLink(forumLink);
-					const ratingMessage = `✅ **Transaction Confirmed!**\n${forumLinkText}\nHow was your experience with <@${otherUserId}>?`;
+					const ratingMessage = `✅ **Transaction confirmed with <@${otherUserId}>!**\n${forumLinkText}\nHow was your experience with <@${otherUserId}>?`;
 
-					await interaction.update({
+					await interaction.editReply({
 						content: ratingMessage,
 						components: [
 							new ActionRowBuilder().addComponents(
@@ -125,7 +125,7 @@ module.exports = {
 			} else if (action === "deny") {
 				// Cancel the transaction
 				await Transaction.destroy({ where: { id: transactionId } });
-				await interaction.update({
+				await interaction.editReply({
 					content: "❌ Transaction cancelled.",
 					components: [],
 				});

@@ -69,8 +69,8 @@ module.exports = {
 					.setEmoji("⏭️")
 			);
 
-			await interaction.update({
-				content: `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating submitted!**\n\nWould you like to write an optional, anonymous review of <@${rateeId}>?`,
+			await interaction.editReply({
+				content: `✅ **Transaction confirmed with <@${rateeId}>!**\n${forumLinkText}\n✅ **Rating submitted!**\n\nWould you like to write an optional, anonymous review of <@${rateeId}>?`,
 				components: [reviewButtons],
 			});
 		} catch (error) {

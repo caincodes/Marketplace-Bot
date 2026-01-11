@@ -68,6 +68,7 @@ module.exports = {
 	async skipRating(interaction, { User, Listing, Transaction, Rating, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
+		const parts = interaction.customId.split("_");
 		const transactionId = parts[2];
 		const raterId = parts[3];
 
@@ -93,10 +94,11 @@ module.exports = {
 			const { transaction, listing } = transactionData;
 			const forumLink = await getForumLink(transaction, listing, client);
 			const forumLinkText = formatForumLink(forumLink);
+			const rateeId = raterId === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
 
 			// Update DM to show rating skipped
-			await interaction.update({
-				content: `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating skipped**`,
+			await interaction.editReply({
+				content: `✅ **Transaction confirmed with <@${rateeId}>!**\n${forumLinkText}\n✅ **Rating skipped**`,
 				components: [],
 			});
 		} catch (error) {
@@ -112,6 +114,7 @@ module.exports = {
 	async skipReview(interaction, { User, Listing, Transaction, Rating, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
+		const parts = interaction.customId.split("_");
 		const ratingId = parts[2];
 		const raterId = parts[3];
 
@@ -144,15 +147,16 @@ module.exports = {
 			const { transaction, listing } = transactionData;
 			const forumLink = await getForumLink(transaction, listing, client);
 			const forumLinkText = formatForumLink(forumLink);
+			const rateeId = raterId === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
 
 			// Update DM to show rating submitted with review skipped
-			await interaction.update({
-				content: `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating submitted**\n✅ **Review skipped**`,
+			await interaction.editReply({
+				content: `✅ **Transaction confirmed with <@${rateeId}>!**\n${forumLinkText}\n✅ **Rating submitted**\n✅ **Review skipped**`,
 				components: [],
 			});
 		} catch (error) {
 			console.error("Error skipping review:", error);
-			await interaction.followUp({
+			await interaction.editReply({
 				content: "An error occurred while skipping the review.",
 				flags: 64,
 			});
@@ -228,15 +232,16 @@ module.exports = {
 			const reviewStatus = userRating.review ? "✅ **Review submitted**" : "✅ **Review skipped**";
 
 			// Update DM with final confirmation
-			const completionMessage = `✅ **Transaction Confirmed!**\n${forumLinkText}\n✅ **Rating submitted**\n${reviewStatus}`;
+			const rateeId = userRating.rateeId;
+			const completionMessage = `✅ **Transaction confirmed with <@${rateeId}>!**\n${forumLinkText}\n✅ **Rating submitted**\n${reviewStatus}`;
 
-			await interaction.update({
+			await interaction.editReply({
 				content: completionMessage,
 				components: [],
 			});
 		} catch (error) {
 			console.error("Error completing transaction:", error);
-			await interaction.followUp({
+			await interaction.editReply({
 				content: "An error occurred while completing the transaction.",
 				flags: 64,
 			});
