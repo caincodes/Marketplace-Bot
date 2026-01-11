@@ -18,12 +18,26 @@ async function testHistoryCommand() {
 
 	const mockUser = {};
 
-	const models = { Listing: mockListing, User: mockUser };
+	const mockRating = {
+		findAll: async () => [
+			{ rating: "positive" },
+			{ rating: "positive" },
+			{ rating: "negative" },
+			{ rating: "positive" },
+			{ rating: "positive" },
+		],
+	};
+
+	const models = { Listing: mockListing, User: mockUser, Rating: mockRating };
 
 	// Mock interaction
 	const mockInteraction = {
 		user: { id: "123456789" },
-		reply: async (options) => {
+		options: {
+			getUser: () => null, // No user specified, so use interaction.user
+		},
+		deferReply: async () => {},
+		editReply: async (options) => {
 			console.log("Reply content:", options.content);
 		},
 	};

@@ -7,8 +7,6 @@ const {
 	ModalBuilder,
 	TextInputBuilder,
 	TextInputStyle,
-	StringSelectMenuBuilder,
-	StringSelectMenuOptionBuilder,
 } = require("discord.js");
 
 module.exports = {
@@ -20,7 +18,11 @@ module.exports = {
 
 			for (const file of commandFiles) {
 				const command = require(path.join(commandsPath, file));
-				if (interaction.commandName === command.name) {
+
+				// Handle both old and new command formats
+				const commandName = command.data ? command.data.name : command.name;
+
+				if (interaction.commandName === commandName) {
 					try {
 						await command.execute(interaction, { User, Listing, Transaction, Rating, client });
 					} catch (error) {
@@ -34,6 +36,7 @@ module.exports = {
 				}
 			}
 		} else if (interaction.isButton()) {
+			// Handle transaction confirmation/denial
 			if (interaction.customId.startsWith("confirm_transaction_")) {
 				const parts = interaction.customId.split("_");
 				const transactionId = parts[2];
@@ -61,11 +64,11 @@ module.exports = {
 					if (action === "confirm") {
 						await transaction.update({ status: "confirmed" });
 						await interaction.update({
-							content: "Transaction confirmed!",
+							content: `Transaction confirmed between <@${initiatorId}> and <@${otherId}>.`,
 							components: [],
 						});
 
-						// Send rating prompts via DM
+						// Send rating buttons via DM
 						const users = [transaction.sellerId, transaction.buyerId];
 						for (const userId of users) {
 							const otherUserId =
@@ -73,18 +76,24 @@ module.exports = {
 							try {
 								const user = await client.users.fetch(userId);
 								await user.send({
-									content: `Transaction confirmed! Would you like to rate <@${otherUserId}>? Your name will not be displayed with your rating.`,
+									content: `Thank you for confirming your transaction! Please rate <@${otherUserId}>:`,
 									components: [
 										new ActionRowBuilder().addComponents(
 											new ButtonBuilder()
-												.setCustomId(`rate_${transaction.id}_${userId}`)
-												.setLabel("Rate the other user")
-												.setStyle(ButtonStyle.Primary)
+												.setCustomId(`rate_positive_${transaction.id}_${userId}`)
+												.setLabel("Positive")
+												.setStyle(ButtonStyle.Success)
+												.setEmoji("👍"),
+											new ButtonBuilder()
+												.setCustomId(`rate_negative_${transaction.id}_${userId}`)
+												.setLabel("Negative")
+												.setStyle(ButtonStyle.Danger)
+												.setEmoji("👎")
 										),
 									],
 								});
 							} catch (error) {
-								console.error(`Error sending rating prompt to ${userId}:`, error);
+								console.error(`Error sending rating buttons to ${userId}:`, error);
 							}
 						}
 					} else if (action === "deny") {
@@ -101,10 +110,13 @@ module.exports = {
 						flags: 64,
 					});
 				}
-			} else if (interaction.customId.startsWith("rate_")) {
+			}
+			// Handle rating buttons (positive/negative)
+			else if (interaction.customId.startsWith("rate_")) {
 				const parts = interaction.customId.split("_");
-				const transactionId = parts[1];
-				const raterId = parts[2];
+				const ratingValue = parts[1]; // "positive" or "negative"
+				const transactionId = parts[2];
+				const raterId = parts[3];
 
 				if (interaction.user.id !== raterId) {
 					return await interaction.reply({
@@ -121,72 +133,69 @@ module.exports = {
 					});
 				}
 
-				const modal = new ModalBuilder()
-					.setCustomId(`rating_modal_${transactionId}_${raterId}`)
-					.setTitle("Rate the other user");
-
-				const ratingSelect = new StringSelectMenuBuilder()
-					.setCustomId("rating")
-					.setPlaceholder("Select your rating!")
-					.setRequired(true)
-					.addOptions(
-						new StringSelectMenuOptionBuilder()
-							.setLabel("Positive")
-							.setDescription("Good experience with this user")
-							.setValue("positive")
-							.setEmoji("👍"),
-						new StringSelectMenuOptionBuilder()
-							.setLabel("Negative")
-							.setDescription("Bad experience with this user")
-							.setValue("negative")
-							.setEmoji("👎")
-					);
-
-				const reviewInput = new TextInputBuilder()
-					.setCustomId("review")
-					.setLabel("Brief review (optional)")
-					.setStyle(TextInputStyle.Paragraph)
-					.setRequired(false);
-
-				const firstActionRow = new ActionRowBuilder().addComponents(ratingSelect);
-				const secondActionRow = new ActionRowBuilder().addComponents(reviewInput);
-
-				modal.addComponents(firstActionRow, secondActionRow);
-
-				await interaction.showModal(modal);
-			}
-		} else if (interaction.isModalSubmit()) {
-			if (interaction.customId.startsWith("rating_modal_")) {
-				const parts = interaction.customId.split("_");
-				const transactionId = parts[2];
-				const raterId = parts[3];
-
-				const rating = interaction.fields.getTextInputValue("rating");
-				const review = interaction.fields.getTextInputValue("review") || null;
-
-				const transaction = await Transaction.findByPk(transactionId);
 				const rateeId =
 					raterId === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
 
+				// Store rating immediately
 				const ratingRecord = await Rating.create({
 					transactionId,
 					raterId,
 					rateeId,
-					rating,
-					review,
+					rating: ratingValue,
+					review: null,
 				});
 
-				// Add rating ID to transaction
+				// Update transaction and listing rating IDs
 				const currentRatingIds = transaction.ratingIds || [];
 				await transaction.update({ ratingIds: [...currentRatingIds, ratingRecord.id] });
 
-				// Add rating ID to listing
 				const listing = await Listing.findByPk(transaction.listingId);
 				const currentListingRatingIds = listing.ratingIds || [];
 				await listing.update({ ratingIds: [...currentListingRatingIds, ratingRecord.id] });
 
+				// Edit the original DM message to remove buttons and update content
+				try {
+					await interaction.update({
+						content: `Transaction confirmed! Thank you for rating <@${rateeId}>.`,
+						components: [],
+					});
+				} catch (error) {
+					console.error("Error updating the rating message:", error);
+				}
+
+				// Prompt optional anonymous review via modal
+				const modal = new ModalBuilder()
+					.setCustomId(`review_modal_${ratingRecord.id}_${raterId}`)
+					.setTitle("Write a Review");
+
+				const reviewInput = new TextInputBuilder()
+					.setCustomId("review")
+					.setLabel("Write a brief review (optional, anonymous)")
+					.setStyle(TextInputStyle.Paragraph)
+					.setRequired(false);
+
+				const actionRow = new ActionRowBuilder().addComponents(reviewInput);
+				modal.addComponents(actionRow);
+
+				await interaction.showModal(modal);
+			}
+		}
+		// Handle modal submission for optional anonymous review
+		else if (interaction.isModalSubmit()) {
+			if (interaction.customId.startsWith("review_modal_")) {
+				const parts = interaction.customId.split("_");
+				const ratingId = parts[2];
+				const raterId = parts[3];
+
+				const review = interaction.fields.getTextInputValue("review") || null;
+
+				const ratingRecord = await Rating.findByPk(ratingId);
+				if (ratingRecord && ratingRecord.raterId === raterId) {
+					await ratingRecord.update({ review });
+				}
+
 				await interaction.reply({
-					content: "Thank you for your rating! Transaction complete.",
+					content: "Thank you for your anonymous review! Transaction complete.",
 					flags: 64,
 				});
 			}

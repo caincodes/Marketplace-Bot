@@ -46,7 +46,8 @@ async function testInteractionCreateEvent() {
 		console.log("Test 1: Command interaction");
 		const commandInteraction = {
 			isCommand: () => true,
-			commandName: "test",
+			commandName: "confirm",
+			channel: { isThread: () => false },
 			reply: async (options) => console.log("Command reply:", options.content),
 		};
 		await interactionCreate.execute(commandInteraction, models);
@@ -56,8 +57,8 @@ async function testInteractionCreateEvent() {
 		const confirmButtonInteraction = {
 			isCommand: () => false,
 			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_confirm",
-			user: { id: "user1" },
+			customId: "confirm_transaction_1_user1_user2_user2_confirm",
+			user: { id: "user2" },
 			update: async (options) => console.log("Button update:", options.content),
 		};
 		await interactionCreate.execute(confirmButtonInteraction, { ...models, client: mockClient });
@@ -67,8 +68,8 @@ async function testInteractionCreateEvent() {
 		const denyButtonInteraction = {
 			isCommand: () => false,
 			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_deny",
-			user: { id: "user1" },
+			customId: "confirm_transaction_1_user1_user2_user2_deny",
+			user: { id: "user2" },
 			update: async (options) => console.log("Button update:", options.content),
 		};
 		await interactionCreate.execute(denyButtonInteraction, models);
@@ -78,7 +79,7 @@ async function testInteractionCreateEvent() {
 		const rateButtonInteraction = {
 			isCommand: () => false,
 			isButton: () => true,
-			customId: "rate_1_user1",
+			customId: "rate_positive_1_user1",
 			user: { id: "user1" },
 			showModal: async (modal) => console.log("Modal shown:", modal.data.title),
 		};
@@ -103,7 +104,7 @@ async function testInteractionCreateEvent() {
 		const unauthorizedInteraction = {
 			isCommand: () => false,
 			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_confirm",
+			customId: "confirm_transaction_1_user1_user2_user2_confirm",
 			user: { id: "unauthorized" },
 			reply: async (options) => console.log("Unauthorized reply:", options.content),
 		};
@@ -115,5 +116,7 @@ async function testInteractionCreateEvent() {
 		console.error("InteractionCreate event test failed:", error);
 	}
 }
+
+module.exports = { testInteractionCreateEvent };
 
 testInteractionCreateEvent();

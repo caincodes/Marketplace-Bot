@@ -1,27 +1,26 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
-	name: "confirm",
-	description: "Confirm a transaction in this forum post",
-	options: [
-		{
-			name: "other_user",
-			description: "The other user in the transaction",
-			type: 6, // USER
-			required: true,
-		},
-		{
-			name: "type",
-			description: "Type of transaction",
-			type: 3, // STRING
-			required: true,
-			choices: [
-				{ name: "Purchase", value: "purchase" },
-				{ name: "Trade", value: "trade" },
-				{ name: "Money + Trade", value: "money+trade" },
-			],
-		},
-	],
+	data: new SlashCommandBuilder()
+		.setName("confirm")
+		.setDescription("Confirm a transaction in this forum post")
+		.addUserOption((option) =>
+			option
+				.setName("other_user")
+				.setDescription("The other user in the transaction")
+				.setRequired(true)
+		)
+		.addStringOption((option) =>
+			option
+				.setName("type")
+				.setDescription("Type of transaction")
+				.setRequired(true)
+				.addChoices(
+					{ name: "Purchase", value: "purchase" },
+					{ name: "Trade", value: "trade" },
+					{ name: "Money + Trade", value: "money+trade" }
+				)
+		),
 	async execute(interaction, { Listing, Transaction, client }) {
 		if (!interaction.channel.isThread()) {
 			return await interaction.reply({
@@ -72,7 +71,7 @@ module.exports = {
 			await listing.update({ transactionIds: [...currentTransactionIds, transaction.id] });
 
 			const confirmMessage = await interaction.channel.send({
-				content: `<@${otherUser.id}>, please confirm the **${type}** transaction for **${listing.type}** ${listing.item} for ${listing.offer}.`,
+				content: `<@${otherUser.id}>, please confirm the **${type}** of **${listing.type}** ${listing.item} for ${listing.offer}.`,
 				components: [
 					new ActionRowBuilder().addComponents(
 						new ButtonBuilder()

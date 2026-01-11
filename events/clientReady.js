@@ -17,11 +17,22 @@ module.exports = {
 		for (const file of commandFiles) {
 			const filePath = path.join(commandsPath, file);
 			const command = require(filePath);
-			commands.push({
-				name: command.name,
-				description: command.description,
-				options: command.options,
-			});
+
+			// Handle both old and new command formats
+			let commandData;
+			if (command.data) {
+				// New format with SlashCommandBuilder
+				commandData = command.data.toJSON();
+			} else {
+				// Old format with direct properties
+				commandData = {
+					name: command.name,
+					description: command.description,
+					options: command.options,
+				};
+			}
+
+			commands.push(commandData);
 		}
 
 		// Register slash commands
