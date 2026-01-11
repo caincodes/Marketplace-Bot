@@ -86,13 +86,13 @@ module.exports = {
 				console.error("Error updating forum tags:", error);
 			}
 
-			await interaction.reply({
+			await interaction.editReply({
 				content: `✅ Listing closed!`,
 				components: [],
 			});
 		} catch (error) {
 			console.error("Error closing listing:", error);
-			await interaction.followUp({
+			await interaction.editReply({
 				content: "An error occurred while closing the listing.",
 				flags: 64,
 			});
