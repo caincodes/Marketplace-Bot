@@ -90,6 +90,24 @@ async function testConfirmCommand() {
 		// Reset getUser
 		mockInteraction.options.getUser = () => createMockUser("seller123");
 
+		console.log("Test 5: Database error");
+		// A failure while creating the transaction must be caught inside the
+		// command and surfaced to the user rather than thrown.
+		mockTransaction.create = async () => {
+			throw new Error("Database error");
+		};
+		let threw = false;
+		try {
+			await confirm.execute(mockInteraction, { ...models, client: mockClient });
+		} catch (error) {
+			threw = true;
+		}
+		if (!threw) {
+			console.log("✓ Test 5 passed: Database error handled gracefully");
+		} else {
+			console.log("✗ Test 5 failed: Database error should be caught inside the command");
+		}
+
 		console.log("All confirm command tests completed successfully!");
 	} catch (error) {
 		console.error("Confirm command test failed:", error);

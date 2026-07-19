@@ -34,6 +34,25 @@ async function testWaitStarterMessage() {
 			console.log("✗ Test 2 failed: Should have returned null");
 		}
 
+		console.log("Test 3: Other errors propagate to the caller");
+		// Non-10008 errors must be re-thrown (previously this killed the process).
+		const mockThreadOther = {
+			fetchStarterMessage: async () => {
+				throw new Error("Network error");
+			},
+		};
+		let propagated = false;
+		try {
+			await WaitStarterMessage(mockThreadOther);
+		} catch (error) {
+			propagated = error.message === "Network error";
+		}
+		if (propagated) {
+			console.log("✓ Test 3 passed: Other errors propagate to the caller");
+		} else {
+			console.log("✗ Test 3 failed: Non-10008 errors should be re-thrown");
+		}
+
 		console.log("All WaitStarterMessage tests completed successfully!");
 	} catch (error) {
 		console.error("WaitStarterMessage test failed:", error);

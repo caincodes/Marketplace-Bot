@@ -1,3 +1,33 @@
+// Install a stub for @discordjs/rest BEFORE clientReady is loaded so the tests
+// exercise command registration without making real calls to the Discord API.
+const restModulePath = require.resolve("@discordjs/rest");
+const originalRestModule = require.cache[restModulePath];
+
+let putCalls = 0;
+let putShouldThrow = false;
+
+require.cache[restModulePath] = {
+	id: restModulePath,
+	filename: restModulePath,
+	loaded: true,
+	exports: {
+		REST: class {
+			setToken() {
+				return this;
+			}
+			async put() {
+				putCalls++;
+				if (putShouldThrow) {
+					throw new Error("Registration failed");
+				}
+				return [];
+			}
+		},
+	},
+};
+
+// Load clientReady fresh so it binds to the stubbed REST.
+delete require.cache[require.resolve("../events/clientReady")];
 const clientReady = require("../events/clientReady");
 
 async function testClientReadyEvent() {
@@ -17,13 +47,28 @@ async function testClientReadyEvent() {
 
 	try {
 		console.log("Test 1: Successful client ready");
+		putCalls = 0;
+		putShouldThrow = false;
 		await clientReady.execute(mockClient, {});
-		console.log("✓ Test 1 passed: Client ready executed successfully");
+		if (putCalls === 1) {
+			console.log("✓ Test 1 passed: Commands registered successfully");
+		} else {
+			console.log("✗ Test 1 failed: Expected commands to be registered once, got", putCalls);
+		}
 
 		console.log("Test 2: Command registration error");
-		// Just verify that error handling works
-		await clientReady.execute(mockClient, {});
-		console.log("✓ Test 2 passed: Error handling works");
+		putShouldThrow = true;
+		let threw = false;
+		try {
+			await clientReady.execute(mockClient, {});
+		} catch (error) {
+			threw = true;
+		}
+		if (!threw) {
+			console.log("✓ Test 2 passed: Registration error handled without crashing");
+		} else {
+			console.log("✗ Test 2 failed: Registration error should be caught inside the event");
+		}
 
 		console.log("All clientReady event tests completed successfully!");
 	} catch (error) {
@@ -34,6 +79,13 @@ async function testClientReadyEvent() {
 			process.env.BOT_TOKEN = originalToken;
 		} else {
 			delete process.env.BOT_TOKEN;
+		}
+
+		// Restore the real @discordjs/rest module.
+		if (originalRestModule) {
+			require.cache[restModulePath] = originalRestModule;
+		} else {
+			delete require.cache[restModulePath];
 		}
 	}
 }

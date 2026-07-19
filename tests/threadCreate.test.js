@@ -54,10 +54,6 @@ async function testThreadCreate() {
 		author: { id: "123456789", username: "testuser" },
 	};
 
-	// Mock WaitStarterMessage
-	const originalWait = require("../utils/WaitStarterMessage");
-	require("../utils/WaitStarterMessage").default = async () => mockFirstMessage;
-
 	try {
 		console.log("Test 1: Valid thread name");
 		await threadCreate.execute(mockThread, models);
@@ -74,31 +70,44 @@ async function testThreadCreate() {
 		console.log("✓ Test 3 passed: Mismatched thread name handled");
 
 		console.log("Test 4: Missing models");
+		// The event warns and recovers instead of throwing, so execute must not throw.
+		mockThread.name = "[EU-BE] [H] Test Item [W] €€€";
 		const emptyModels = {};
+		const originalWarn = console.warn;
+		let warned = false;
+		console.warn = (...args) => {
+			if (args.join(" ").includes("Database models not provided")) warned = true;
+		};
 		try {
 			await threadCreate.execute(mockThread, emptyModels);
-			console.log("✗ Test 4 failed: Should have thrown error");
-		} catch (error) {
-			if (error.message.includes("Database models not provided")) {
-				console.log("✓ Test 4 passed: Missing models handled");
+			if (warned) {
+				console.log("✓ Test 4 passed: Missing models handled gracefully with a warning");
 			} else {
-				console.log("✗ Test 4 failed:", error.message);
+				console.log("✗ Test 4 failed: Expected a missing-models warning");
 			}
+		} catch (error) {
+			console.log("✗ Test 4 failed: execute should not throw on missing models:", error.message);
+		} finally {
+			console.warn = originalWarn;
 		}
 
 		console.log("Test 5: WaitStarterMessage error");
-		require("../utils/WaitStarterMessage").default = async () => {
+		// A non-10008 error propagates out of WaitStarterMessage; the event must
+		// catch it and return without throwing.
+		const originalFetch = mockThread.fetchStarterMessage;
+		mockThread.fetchStarterMessage = async () => {
 			throw new Error("Failed to fetch message");
 		};
 		try {
 			await threadCreate.execute(mockThread, models);
-			console.log("✗ Test 5 failed: Should have thrown error");
+			console.log("✓ Test 5 passed: WaitStarterMessage error handled gracefully");
 		} catch (error) {
-			console.log("✓ Test 5 passed: WaitStarterMessage error handled");
+			console.log("✗ Test 5 failed: execute should not throw on fetch error:", error.message);
+		} finally {
+			mockThread.fetchStarterMessage = originalFetch;
 		}
 
 		console.log("Test 6: Database error on listing creation");
-		require("../utils/WaitStarterMessage").default = async () => mockFirstMessage;
 		mockListing.create = async () => {
 			throw new Error("Database error");
 		};
@@ -114,9 +123,6 @@ async function testThreadCreate() {
 		console.log("All tests completed successfully!");
 	} catch (error) {
 		console.error("Test failed:", error);
-	} finally {
-		// Restore original
-		require("../utils/WaitStarterMessage").default = originalWait.default;
 	}
 }
 
