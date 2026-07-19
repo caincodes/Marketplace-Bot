@@ -1,4 +1,5 @@
-const assert = require("assert");
+const { test } = require("node:test");
+const assert = require("node:assert");
 const close = require("../commands/close");
 
 function makeInteraction(overrides = {}) {
@@ -40,88 +41,75 @@ function makeListing(overrides = {}) {
 	};
 }
 
-async function testClose() {
-	console.log("Running close command tests...");
+test("close: SELL listing closed with [SOLD] prefix", async () => {
+	const listing = makeListing();
+	const interaction = makeInteraction();
+	await close.execute(interaction, { Listing: { findOne: async () => listing }, client: {} });
+	assert.strictEqual(listing.closed, true, "listing marked closed");
+	assert.ok(interaction.channel.name.startsWith("[SOLD]"), "SELL uses [SOLD] prefix");
+	assert.deepStrictEqual(interaction.appliedTags, ["tag-closed"], "closed tag applied");
+	assert.ok(
+		interaction.replies.some((r) => r.includes("Listing closed")),
+		"confirmation sent",
+	);
+});
 
-	try {
-		console.log("Test 1: Successful close of a SELL listing");
-		let listing = makeListing();
-		let interaction = makeInteraction();
-		await close.execute(interaction, { Listing: { findOne: async () => listing }, client: {} });
-		assert.strictEqual(listing.closed, true, "listing marked closed");
-		assert.ok(interaction.channel.name.startsWith("[SOLD]"), "SELL uses [SOLD] prefix");
-		assert.deepStrictEqual(interaction.appliedTags, ["tag-closed"], "closed tag applied");
-		assert.ok(
-			interaction.replies.some((r) => r.includes("Listing closed")),
-			"confirmation sent",
-		);
-		console.log("✓ Test 1 passed: SELL listing closed with [SOLD] prefix");
+test("close: withdrawn reason uses [WITHDRAWN] prefix", async () => {
+	const listing = makeListing();
+	const interaction = makeInteraction({ options: { getString: () => "withdrawn" } });
+	await close.execute(interaction, { Listing: { findOne: async () => listing }, client: {} });
+	assert.ok(interaction.channel.name.startsWith("[WITHDRAWN]"), "withdrawn prefix applied");
+});
 
-		console.log("Test 2: Withdrawn reason uses [WITHDRAWN] prefix");
-		listing = makeListing();
-		interaction = makeInteraction({ options: { getString: () => "withdrawn" } });
-		await close.execute(interaction, { Listing: { findOne: async () => listing }, client: {} });
-		assert.ok(interaction.channel.name.startsWith("[WITHDRAWN]"), "withdrawn prefix applied");
-		console.log("✓ Test 2 passed: Withdrawn reason handled");
+test("close: BUY listing uses [FOUND] prefix", async () => {
+	const listing = makeListing({ type: "BUY" });
+	const interaction = makeInteraction();
+	await close.execute(interaction, { Listing: { findOne: async () => listing }, client: {} });
+	assert.ok(interaction.channel.name.startsWith("[FOUND]"), "BUY uses [FOUND] prefix");
+});
 
-		console.log("Test 3: BUY listing uses [FOUND] prefix");
-		listing = makeListing({ type: "BUY" });
-		interaction = makeInteraction();
-		await close.execute(interaction, { Listing: { findOne: async () => listing }, client: {} });
-		assert.ok(interaction.channel.name.startsWith("[FOUND]"), "BUY uses [FOUND] prefix");
-		console.log("✓ Test 3 passed: BUY listing closed with [FOUND] prefix");
+test("close: non-thread channel is rejected", async () => {
+	const interaction = makeInteraction({ channel: { isThread: () => false } });
+	await close.execute(interaction, {
+		Listing: { findOne: async () => makeListing() },
+		client: {},
+	});
+	assert.ok(interaction.replies[0].includes("must be run inside a forum post"), "thread error");
+});
 
-		console.log("Test 4: Not a thread");
-		interaction = makeInteraction({ channel: { isThread: () => false } });
-		await close.execute(interaction, {
-			Listing: { findOne: async () => makeListing() },
-			client: {},
-		});
-		assert.ok(interaction.replies[0].includes("must be run inside a forum post"), "thread error");
-		console.log("✓ Test 4 passed: Non-thread rejected");
+test("close: missing listing handled", async () => {
+	const interaction = makeInteraction();
+	await close.execute(interaction, { Listing: { findOne: async () => null }, client: {} });
+	assert.ok(interaction.replies[0].includes("No listing found"), "no listing error");
+});
 
-		console.log("Test 5: No listing found");
-		interaction = makeInteraction();
-		await close.execute(interaction, { Listing: { findOne: async () => null }, client: {} });
-		assert.ok(interaction.replies[0].includes("No listing found"), "no listing error");
-		console.log("✓ Test 5 passed: Missing listing handled");
+test("close: non-owner cannot close", async () => {
+	const interaction = makeInteraction({ user: { id: "someoneelse" } });
+	await close.execute(interaction, {
+		Listing: { findOne: async () => makeListing() },
+		client: {},
+	});
+	assert.ok(interaction.replies[0].includes("Only the listing poster"), "owner check");
+});
 
-		console.log("Test 6: Non-owner cannot close");
-		interaction = makeInteraction({ user: { id: "someoneelse" } });
-		await close.execute(interaction, {
-			Listing: { findOne: async () => makeListing() },
-			client: {},
-		});
-		assert.ok(interaction.replies[0].includes("Only the listing poster"), "owner check");
-		console.log("✓ Test 6 passed: Non-owner rejected");
+test("close: already-closed listing handled", async () => {
+	const interaction = makeInteraction();
+	await close.execute(interaction, {
+		Listing: { findOne: async () => makeListing({ closed: true }) },
+		client: {},
+	});
+	assert.ok(interaction.replies[0].includes("already closed"), "already closed error");
+});
 
-		console.log("Test 7: Already closed listing");
-		interaction = makeInteraction();
-		await close.execute(interaction, {
-			Listing: { findOne: async () => makeListing({ closed: true }) },
-			client: {},
-		});
-		assert.ok(interaction.replies[0].includes("already closed"), "already closed error");
-		console.log("✓ Test 7 passed: Already-closed handled");
-
-		console.log("Test 8: Database error handled");
-		interaction = makeInteraction();
-		await close.execute(interaction, {
-			Listing: {
-				findOne: async () => {
-					throw new Error("db error");
-				},
+test("close: database error handled", async () => {
+	const interaction = makeInteraction();
+	await close.execute(interaction, {
+		Listing: {
+			findOne: async () => {
+				throw new Error("db error");
 			},
-			client: {},
-		});
-		assert.ok(interaction.replies[0].includes("An error occurred"), "generic error reply");
-		console.log("✓ Test 8 passed: Database error handled");
-
-		console.log("All close command tests completed successfully!");
-	} catch (error) {
-		console.error("Close command test failed:", error);
-		process.exitCode = 1;
-	}
-}
-
-testClose();
+		},
+		client: {},
+	});
+	assert.ok(interaction.replies[0].includes("An error occurred"), "generic error reply");
+});
