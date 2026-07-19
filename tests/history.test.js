@@ -1,81 +1,77 @@
+const { test } = require("node:test");
+const assert = require("node:assert");
 const history = require("../commands/history");
 
-async function testHistoryCommand() {
-	console.log("Running history command tests...");
-
-	// Mock models
-	const mockListing = {
-		findAll: async () => [
-			{
-				type: "SELL",
-				item: "Test Item",
-				offer: "100g",
-				region: "EU",
-				User: { username: "testuser" },
-			},
-		],
-	};
-
-	const mockUser = {};
-
-	const mockRating = {
-		findAll: async () => [
-			{ rating: "positive" },
-			{ rating: "positive" },
-			{ rating: "negative" },
-			{ rating: "positive" },
-			{ rating: "positive" },
-		],
-	};
-
-	const mockTransaction = {
-		findAll: async () => [
-			{ buyerId: "123456789", type: "purchase" },
-			{ sellerId: "123456789", type: "purchase" },
-			{ buyerId: "123456789", sellerId: "other", type: "trade" },
-		],
-	};
-
-	const models = {
-		Listing: mockListing,
-		User: mockUser,
-		Rating: mockRating,
-		Transaction: mockTransaction,
-	};
-
-	// Mock interaction
-	const mockInteraction = {
-		user: { id: "123456789" },
-		options: {
-			getUser: () => null, // No user specified, so use interaction.user
+function makeModels(overrides = {}) {
+	return {
+		Listing: {
+			findAll: async () => [
+				{ type: "SELL", item: "Test Item", offer: "100g", region: "EU", User: { username: "u" } },
+			],
 		},
-		deferReply: async () => {},
-		editReply: async (options) => {
-			console.log("Reply content:", options.content);
+		User: {},
+		Rating: {
+			findAll: async () => [
+				{ rating: "positive" },
+				{ rating: "positive" },
+				{ rating: "negative" },
+				{ rating: "positive" },
+				{ rating: "positive" },
+			],
 		},
+		Transaction: {
+			findAll: async () => [
+				{ buyerId: "123456789", type: "purchase" },
+				{ sellerId: "123456789", type: "purchase" },
+				{ buyerId: "123456789", sellerId: "other", type: "trade" },
+			],
+		},
+		...overrides,
 	};
-
-	try {
-		console.log("Test 1: User with listings");
-		await history.execute(mockInteraction, models);
-		console.log("✓ Test 1 passed: History displayed for user with listings");
-
-		console.log("Test 2: User with no listings");
-		mockListing.findAll = async () => [];
-		await history.execute(mockInteraction, models);
-		console.log("✓ Test 2 passed: No listings message displayed");
-
-		console.log("Test 3: Database error");
-		mockListing.findAll = async () => {
-			throw new Error("Database connection failed");
-		};
-		await history.execute(mockInteraction, models);
-		console.log("✓ Test 3 passed: Error handled gracefully");
-
-		console.log("All history command tests completed successfully!");
-	} catch (error) {
-		console.error("History command test failed:", error);
-	}
 }
 
-testHistoryCommand();
+function makeInteraction(overrides = {}) {
+	const edits = [];
+	const interaction = {
+		edits,
+		user: { id: "123456789" },
+		options: { getUser: () => null },
+		deferReply: async () => {},
+		editReply: async (opts) => edits.push(opts.content),
+		...overrides,
+	};
+	return interaction;
+}
+
+test("history: displays reputation for a user with listings", async () => {
+	const interaction = makeInteraction();
+	await history.execute(interaction, makeModels());
+	assert.ok(
+		interaction.edits.some((e) => e.includes("Listings: `1` total")),
+		"listing count rendered",
+	);
+});
+
+test("history: shows zero listings for a user with none", async () => {
+	const interaction = makeInteraction();
+	await history.execute(interaction, makeModels({ Listing: { findAll: async () => [] } }));
+	assert.ok(
+		interaction.edits.some((e) => e.includes("Listings: `0` total")),
+		"zero listings rendered",
+	);
+});
+
+test("history: handles errors gracefully", async () => {
+	const interaction = makeInteraction({
+		options: {
+			getUser: () => {
+				throw new Error("boom");
+			},
+		},
+	});
+	await history.execute(interaction, makeModels());
+	assert.ok(
+		interaction.edits.some((e) => e.includes("An error occurred while fetching the history")),
+		"error surfaced to user",
+	);
+});

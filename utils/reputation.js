@@ -1,6 +1,27 @@
 const { Op } = require("sequelize");
 
 /**
+ * Run a model's findAll, defaulting to an empty array if the query itself fails
+ * so one failing lookup doesn't wipe out the whole reputation summary. A missing
+ * model (undefined) is a caller error and is thrown to the fatal handler.
+ * @param {Object} model - Sequelize model
+ * @param {Object} options - findAll options
+ * @param {string} label - Human-readable label for logging
+ * @returns {Promise<Array>} Query results, or [] on query failure
+ */
+async function safeFindAll(model, options, label) {
+	if (!model || typeof model.findAll !== "function") {
+		throw new Error(`Missing model: ${label}`);
+	}
+	try {
+		return await model.findAll(options);
+	} catch (error) {
+		console.error(`Error loading ${label}:`, error);
+		return [];
+	}
+}
+
+/**
  * Calculate and format marketplace reputation for a user
  * @param {string} userId - The Discord user ID
  * @param {Object} models - Database models (Listing, Transaction, Rating)
@@ -8,16 +29,18 @@ const { Op } = require("sequelize");
  */
 async function getUserReputation(userId, { Listing, Transaction, Rating }) {
 	try {
-		const listings = await Listing.findAll({
-			where: { userId },
-		});
+		const listings = await safeFindAll(Listing, { where: { userId } }, "listings");
 
-		const transactions = await Transaction.findAll({
-			where: {
-				[Op.or]: [{ sellerId: userId }, { buyerId: userId }],
-				status: "confirmed",
+		const transactions = await safeFindAll(
+			Transaction,
+			{
+				where: {
+					[Op.or]: [{ sellerId: userId }, { buyerId: userId }],
+					status: "confirmed",
+				},
 			},
-		});
+			"transactions",
+		);
 
 		const now = Math.floor(Date.now() / 1000);
 		let response = `**Marketplace History for <@${userId}>** (as of <t:${now}:R>)\n\n`;
@@ -29,7 +52,7 @@ async function getUserReputation(userId, { Listing, Transaction, Rating }) {
 		const sells = transactions.filter((t) => t.sellerId === userId && t.type === "purchase").length;
 
 		const trades = transactions.filter(
-			(t) => t.type === "trade" || t.type === "money+trade"
+			(t) => t.type === "trade" || t.type === "money+trade",
 		).length;
 
 		response += `**Listings Summary**\n`;
@@ -37,11 +60,7 @@ async function getUserReputation(userId, { Listing, Transaction, Rating }) {
 		response += `- Transactions: \`${buys}\` buys, \`${sells}\` sells, \`${trades}\` trades\n\n`;
 
 		// Fetch ratings for the target user (ratings they've received)
-		const ratings = await Rating.findAll({
-			where: {
-				rateeId: userId,
-			},
-		});
+		const ratings = await safeFindAll(Rating, { where: { rateeId: userId } }, "ratings");
 
 		// Calculate reputation based on positive/negative ratings
 		if (ratings && ratings.length > 0) {

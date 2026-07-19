@@ -1,3 +1,6 @@
+const { test, before, after } = require("node:test");
+const assert = require("node:assert");
+
 // Install a stub for @discordjs/rest BEFORE clientReady is loaded so the tests
 // exercise command registration without making real calls to the Discord API.
 const restModulePath = require.resolve("@discordjs/rest");
@@ -30,64 +33,43 @@ require.cache[restModulePath] = {
 delete require.cache[require.resolve("../events/clientReady")];
 const clientReady = require("../events/clientReady");
 
-async function testClientReadyEvent() {
-	console.log("Running clientReady event tests...");
+const mockClient = {
+	user: {
+		tag: "TestBot#1234",
+		id: "bot123",
+	},
+};
 
-	// Set token in environment
-	const originalToken = process.env.BOT_TOKEN;
+const originalToken = process.env.BOT_TOKEN;
+
+before(() => {
 	process.env.BOT_TOKEN = "test-token-123";
+});
 
-	// Mock client
-	const mockClient = {
-		user: {
-			tag: "TestBot#1234",
-			id: "bot123",
-		},
-	};
-
-	try {
-		console.log("Test 1: Successful client ready");
-		putCalls = 0;
-		putShouldThrow = false;
-		await clientReady.execute(mockClient, {});
-		if (putCalls === 1) {
-			console.log("✓ Test 1 passed: Commands registered successfully");
-		} else {
-			console.log("✗ Test 1 failed: Expected commands to be registered once, got", putCalls);
-		}
-
-		console.log("Test 2: Command registration error");
-		putShouldThrow = true;
-		let threw = false;
-		try {
-			await clientReady.execute(mockClient, {});
-		} catch (error) {
-			threw = true;
-		}
-		if (!threw) {
-			console.log("✓ Test 2 passed: Registration error handled without crashing");
-		} else {
-			console.log("✗ Test 2 failed: Registration error should be caught inside the event");
-		}
-
-		console.log("All clientReady event tests completed successfully!");
-	} catch (error) {
-		console.error("ClientReady event test failed:", error);
-	} finally {
-		// Restore original token
-		if (originalToken) {
-			process.env.BOT_TOKEN = originalToken;
-		} else {
-			delete process.env.BOT_TOKEN;
-		}
-
-		// Restore the real @discordjs/rest module.
-		if (originalRestModule) {
-			require.cache[restModulePath] = originalRestModule;
-		} else {
-			delete require.cache[restModulePath];
-		}
+after(() => {
+	if (originalToken) {
+		process.env.BOT_TOKEN = originalToken;
+	} else {
+		delete process.env.BOT_TOKEN;
 	}
-}
+	if (originalRestModule) {
+		require.cache[restModulePath] = originalRestModule;
+	} else {
+		delete require.cache[restModulePath];
+	}
+});
 
-testClientReadyEvent();
+test("clientReady: registers commands once on ready", async () => {
+	putCalls = 0;
+	putShouldThrow = false;
+	await clientReady.execute(mockClient, {});
+	assert.strictEqual(putCalls, 1, "commands registered exactly once");
+});
+
+test("clientReady: registration error is caught inside the event", async () => {
+	putShouldThrow = true;
+	await assert.doesNotReject(
+		clientReady.execute(mockClient, {}),
+		"registration error handled without crashing",
+	);
+});

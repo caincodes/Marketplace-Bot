@@ -1,135 +1,86 @@
+const { test } = require("node:test");
+const assert = require("node:assert");
 const interactionCreate = require("../events/interactionCreate");
 
-async function testInteractionCreateEvent() {
-	console.log("Running interactionCreate event tests...");
-
-	// Mock models
-	const mockTransaction = {
-		findByPk: async (id) => ({
-			id: parseInt(id),
-			sellerId: "seller123",
-			buyerId: "buyer456",
-			listingId: 1,
-			ratingIds: [],
-			update: async (data) => console.log("Transaction updated:", data),
-		}),
-		destroy: async () => console.log("Transaction destroyed"),
-	};
-
-	const mockRating = {
-		create: async (data) => ({
-			id: 1,
-			...data,
-		}),
-	};
-
-	const mockListing = {
-		findByPk: async (id) => ({
-			id: parseInt(id),
-			ratingIds: [],
-			update: async (data) => console.log("Listing updated:", data),
-		}),
-	};
-
-	const models = { Transaction: mockTransaction, Rating: mockRating, Listing: mockListing };
-
-	// Mock client
-	const mockClient = {
-		users: {
-			fetch: async (id) => ({
-				send: async (options) => console.log("DM sent:", options.content),
+function makeModels() {
+	return {
+		Transaction: {
+			findByPk: async (id) => ({
+				id: parseInt(id),
+				sellerId: "user1",
+				buyerId: "user2",
+				listingId: 1,
+				ratingIds: [],
+				update: async () => {},
 			}),
+			destroy: async () => {},
+		},
+		Rating: { create: async (data) => ({ id: 1, ...data }) },
+		Listing: {
+			findByPk: async (id) => ({ id: parseInt(id), ratingIds: [], update: async () => {} }),
+		},
+		client: {
+			channels: { fetch: async () => ({ guild: { id: "g1" } }) },
+			users: { fetch: async () => ({ send: async () => {} }) },
 		},
 	};
-
-	try {
-		console.log("Test 1: Command interaction");
-		const commandInteraction = {
-			isCommand: () => true,
-			isButton: () => false,
-			isModalSubmit: () => false,
-			commandName: "confirm",
-			channel: { isThread: () => false },
-			reply: async (options) => console.log("Command reply:", options.content),
-		};
-		await interactionCreate.execute(commandInteraction, models);
-		console.log("✓ Test 1 passed: Command interaction handled");
-
-		console.log("Test 2: Transaction confirm button");
-		const confirmButtonInteraction = {
-			isCommand: () => false,
-			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_confirm",
-			user: { id: "user2" },
-			deferUpdate: async () => {},
-			editReply: async (options) => console.log("Button update:", options.content),
-			followUp: async (options) => console.log("Follow-up message:", options.content),
-		};
-		await interactionCreate.execute(confirmButtonInteraction, { ...models, client: mockClient });
-		console.log("✓ Test 2 passed: Transaction confirmed");
-
-		console.log("Test 3: Transaction deny button");
-		const denyButtonInteraction = {
-			isCommand: () => false,
-			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_deny",
-			user: { id: "user2" },
-			deferUpdate: async () => {},
-			editReply: async (options) => console.log("Button update:", options.content),
-			followUp: async (options) => console.log("Follow-up message:", options.content),
-		};
-		await interactionCreate.execute(denyButtonInteraction, models);
-		console.log("✓ Test 3 passed: Transaction denied");
-
-		console.log("Test 4: Rate button");
-		const rateButtonInteraction = {
-			isCommand: () => false,
-			isButton: () => true,
-			customId: "rate_positive_1_user1",
-			user: { id: "user1" },
-			deferUpdate: async () => {},
-			editReply: async (options) => console.log("Button update:", options.content),
-			showModal: async (modal) => console.log("Modal shown:", modal.data.title),
-		};
-		await interactionCreate.execute(rateButtonInteraction, models);
-		console.log("✓ Test 4 passed: Rating modal shown");
-
-		console.log("Test 5: Modal submit");
-		const modalSubmitInteraction = {
-			isCommand: () => false,
-			isButton: () => false,
-			isModalSubmit: () => true,
-			customId: "rating_modal_1_user1",
-			user: { id: "user1" },
-			deferUpdate: async () => {},
-			editReply: async (options) => console.log("Modal reply:", options.content),
-			fields: {
-				getTextInputValue: (id) => (id === "rating" ? "positive" : "Good seller"),
-			},
-			reply: async (options) => console.log("Modal reply:", options.content),
-		};
-		await interactionCreate.execute(modalSubmitInteraction, models);
-		console.log("✓ Test 5 passed: Rating submitted");
-
-		console.log("Test 6: Unauthorized access");
-		const unauthorizedInteraction = {
-			isCommand: () => false,
-			isButton: () => true,
-			customId: "confirm_transaction_1_user1_user2_confirm",
-			user: { id: "unauthorized" },
-			deferUpdate: async () => {},
-			editReply: async (options) => console.log("Unauthorized reply:", options.content),
-			followUp: async (options) => console.log("Follow-up message:", options.content),
-		};
-		await interactionCreate.execute(unauthorizedInteraction, models);
-		console.log("✓ Test 6 passed: Unauthorized access blocked");
-
-		console.log("All interactionCreate event tests completed successfully!");
-	} catch (error) {
-		console.error("InteractionCreate event test failed:", error);
-	}
 }
 
-module.exports = { testInteractionCreateEvent };
+function captureButton(customId, userId) {
+	const out = { edits: [], followUps: [] };
+	return {
+		out,
+		interaction: {
+			isCommand: () => false,
+			isButton: () => true,
+			isModalSubmit: () => false,
+			customId,
+			user: { id: userId },
+			deferUpdate: async () => {},
+			editReply: async (opts) => out.edits.push(opts.content),
+			followUp: async (opts) => out.followUps.push(opts.content),
+			showModal: async () => {},
+		},
+	};
+}
 
-testInteractionCreateEvent();
+test("interactionCreate: routes a slash command", async () => {
+	const replies = [];
+	const interaction = {
+		isCommand: () => true,
+		isButton: () => false,
+		isModalSubmit: () => false,
+		commandName: "confirm",
+		channel: { isThread: () => false },
+		reply: async (opts) => replies.push(opts.content),
+	};
+	await interactionCreate.execute(interaction, makeModels());
+	assert.ok(replies.length > 0, "command produced a reply");
+});
+
+test("interactionCreate: handles a transaction confirm button", async () => {
+	const { interaction } = captureButton("confirm_transaction_1_user1_user2_confirm", "user2");
+	await assert.doesNotReject(interactionCreate.execute(interaction, makeModels()));
+});
+
+test("interactionCreate: handles a transaction deny button", async () => {
+	const { interaction } = captureButton("confirm_transaction_1_user1_user2_deny", "user2");
+	await assert.doesNotReject(interactionCreate.execute(interaction, makeModels()));
+});
+
+test("interactionCreate: handles a rate button", async () => {
+	const { interaction } = captureButton("rate_positive_1_user1", "user1");
+	await assert.doesNotReject(interactionCreate.execute(interaction, makeModels()));
+});
+
+test("interactionCreate: unauthorized user is rejected on confirm", async () => {
+	const { out, interaction } = captureButton(
+		"confirm_transaction_1_user1_user2_confirm",
+		"intruder",
+	);
+	await interactionCreate.execute(interaction, makeModels());
+	assert.ok(
+		out.followUps.some((f) => f.includes("can confirm")),
+		"unauthorized confirm blocked",
+	);
+});
