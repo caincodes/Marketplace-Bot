@@ -3,11 +3,14 @@ async function WaitStarterMessage(thread) {
 		const message = await thread.fetchStarterMessage();
 		return message;
 	} catch (error) {
-		if (error.name !== "DiscordAPIError[10008]") {
-			console.log(error);
-			process.exit();
+		// 10008 (Unknown Message) means the starter message isn't available yet
+		// or the thread was deleted; treat as "no message" so the caller can retry.
+		if (error.name === "DiscordAPIError[10008]") {
+			return null;
 		}
-		return null;
+		// Propagate any other error to the caller instead of killing the whole
+		// process, which previously exited with a success code and took the bot down.
+		throw error;
 	}
 }
 

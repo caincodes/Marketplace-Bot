@@ -229,6 +229,16 @@ module.exports = {
 				},
 			});
 
+			if (!userRating) {
+				console.error(
+					`No rating found for transaction ${transactionId} by user ${interaction.user.id}`,
+				);
+				return await interaction.followUp({
+					content: "An error occurred while completing the transaction.",
+					flags: 64,
+				});
+			}
+
 			const reviewStatus = userRating.review ? "✅ **Review submitted**" : "✅ **Review skipped**";
 
 			// Update DM with final confirmation
