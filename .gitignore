@@ -5,3 +5,4 @@ settings.json
 .vscode/*
 .vscode/
 .DS_Store
+demos/*
