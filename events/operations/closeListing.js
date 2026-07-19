@@ -42,7 +42,7 @@ module.exports = {
 			// Get the thread channel
 			const thread = await client.channels.fetch(listing.threadId);
 			if (!thread) {
-				return await interaction.reply({
+				return await interaction.followUp({
 					content: "Forum post not found.",
 					flags: 64,
 				});

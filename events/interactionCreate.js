@@ -39,16 +39,20 @@ module.exports = {
 			}
 		} catch (error) {
 			console.error("[Error] Error in interactionCreate:", error);
-			// Only reply if we haven't already
-			if (!interaction.replied && !interaction.deferred) {
-				try {
-					await interaction.reply({
-						content: "An unexpected error occurred.",
-						flags: 64,
-					});
-				} catch (replyError) {
-					console.error("[Error] Error sending error reply:", replyError);
+			// Always try to give the user feedback. If the interaction was already
+			// deferred or replied, reply() would throw, so follow up instead.
+			const errorMessage = {
+				content: "An unexpected error occurred.",
+				flags: 64,
+			};
+			try {
+				if (interaction.replied || interaction.deferred) {
+					await interaction.followUp(errorMessage);
+				} else {
+					await interaction.reply(errorMessage);
 				}
+			} catch (replyError) {
+				console.error("[Error] Error sending error reply:", replyError);
 			}
 		}
 	},

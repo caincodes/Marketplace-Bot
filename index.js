@@ -24,16 +24,6 @@ Transaction.belongsTo(Listing, { foreignKey: "listingId" });
 Transaction.hasMany(Rating, { foreignKey: "transactionId" });
 Rating.belongsTo(Transaction, { foreignKey: "transactionId" });
 
-// Sync database safely: add missing columns but don't drop tables
-(async () => {
-	try {
-		await sequelize.sync(); // Safe sync - adds missing columns/tables without dropping existing data
-		console.log("Database synced successfully.");
-	} catch (err) {
-		console.error("Error syncing database:", err);
-	}
-})();
-
 const { Client, GatewayIntentBits } = require("discord.js");
 
 const client = new Client({
@@ -65,4 +55,22 @@ for (const file of eventFiles) {
 	}
 }
 
-client.login(token);
+// Sync database, then log in. Both steps are fatal on failure: a broken
+// database or a failed login leaves the bot unusable, so surface the error
+// and exit rather than continuing in a half-initialized state.
+(async () => {
+	try {
+		await sequelize.sync(); // Safe sync - adds missing columns/tables without dropping existing data
+		console.log("Database synced successfully.");
+	} catch (err) {
+		console.error("Fatal: failed to sync database:", err);
+		process.exit(1);
+	}
+
+	try {
+		await client.login(token);
+	} catch (err) {
+		console.error("Fatal: failed to log in to Discord:", err);
+		process.exit(1);
+	}
+})();
