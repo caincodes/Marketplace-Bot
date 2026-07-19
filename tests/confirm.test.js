@@ -1,48 +1,33 @@
+const { test } = require("node:test");
+const assert = require("node:assert");
 const confirm = require("../commands/confirm");
 
-async function testConfirmCommand() {
-	console.log("Running confirm command tests...");
-
-	// Mock models
-	const mockListing = {
-		findOne: async () => ({
-			id: 1,
-			userId: "seller123",
-			type: "SELL",
-			item: "Test Item",
-			offer: "100g",
-			transactionIds: [],
-			update: async (data) => console.log("Listing updated:", data),
-		}),
+function makeListing() {
+	return {
+		id: 1,
+		userId: "seller123",
+		type: "SELL",
+		item: "Test Item",
+		offer: "100g",
+		transactionIds: [],
+		update: async () => {},
 	};
+}
 
-	const mockTransaction = {
-		create: async (data) => ({
-			id: 1,
-			...data,
-		}),
-	};
+const mockClient = {
+	users: {
+		fetch: async (id) => ({ id, bot: false, send: async () => {} }),
+	},
+};
 
-	const mockClient = {
-		users: {
-			fetch: async (id) => ({
-				id,
-				bot: false,
-				send: async (options) => console.log("DM sent:", options.content?.substring(0, 50)),
-			}),
-		},
-	};
+function createMockUser(id) {
+	return { id, bot: false, send: async () => {} };
+}
 
-	const models = { Listing: mockListing, Transaction: mockTransaction };
-
-	// Create a more complete mock interaction
-	const createMockUser = (id) => ({
-		id,
-		bot: false,
-		send: async (options) => console.log(`DM sent to ${id}:`, options.content?.substring(0, 50)),
-	});
-
-	const mockInteraction = {
+function makeInteraction(overrides = {}) {
+	const replies = [];
+	const interaction = {
+		replies,
 		channel: { isThread: () => true, id: "thread123" },
 		guildId: "guild123",
 		user: { id: "buyer456" },
@@ -50,50 +35,73 @@ async function testConfirmCommand() {
 			getUser: () => createMockUser("seller123"),
 			getString: () => "purchase",
 		},
-		reply: async (options) => {
-			console.log("Reply content:", options.content?.substring(0, 50));
-		},
+		reply: async (opts) => replies.push(opts.content),
+		...overrides,
 	};
-
-	try {
-		console.log("Test 1: Valid confirm command");
-		await confirm.execute(mockInteraction, { ...models, client: mockClient });
-		console.log("✓ Test 1 passed: Transaction created successfully");
-
-		console.log("Test 2: Command not in thread");
-		mockInteraction.channel.isThread = () => false;
-		await confirm.execute(mockInteraction, { ...models, client: mockClient });
-		console.log("✓ Test 2 passed: Error for non-thread channel");
-
-		mockInteraction.channel.isThread = () => true;
-
-		console.log("Test 3: No listing found");
-		mockListing.findOne = async () => null;
-		await confirm.execute(mockInteraction, { ...models, client: mockClient });
-		console.log("✓ Test 3 passed: Error for no listing");
-
-		mockListing.findOne = async () => ({
-			id: 1,
-			userId: "seller123",
-			type: "SELL",
-			item: "Test Item",
-			offer: "100g",
-			transactionIds: [],
-			update: async (data) => console.log("Listing updated:", data),
-		});
-
-		console.log("Test 4: Wrong seller specified");
-		mockInteraction.options.getUser = () => createMockUser("wrong123");
-		await confirm.execute(mockInteraction, { ...models, client: mockClient });
-		console.log("✓ Test 4 passed: Error for wrong seller");
-
-		// Reset getUser
-		mockInteraction.options.getUser = () => createMockUser("seller123");
-
-		console.log("All confirm command tests completed successfully!");
-	} catch (error) {
-		console.error("Confirm command test failed:", error);
-	}
+	return interaction;
 }
 
-testConfirmCommand();
+function baseModels(overrides = {}) {
+	return {
+		Listing: { findOne: async () => makeListing() },
+		Transaction: { create: async (data) => ({ id: 1, ...data }) },
+		client: mockClient,
+		...overrides,
+	};
+}
+
+test("confirm: valid confirm command sends confirmation", async () => {
+	const interaction = makeInteraction();
+	await confirm.execute(interaction, baseModels());
+	assert.ok(
+		interaction.replies.some((r) => r.includes("Transaction confirmation sent")),
+		"confirmation reply sent",
+	);
+});
+
+test("confirm: rejects when not run in a thread", async () => {
+	const interaction = makeInteraction({ channel: { isThread: () => false, id: "thread123" } });
+	await confirm.execute(interaction, baseModels());
+	assert.ok(
+		interaction.replies.some((r) => r.includes("must be run inside a forum post")),
+		"thread requirement enforced",
+	);
+});
+
+test("confirm: rejects when no listing found", async () => {
+	const interaction = makeInteraction();
+	await confirm.execute(interaction, baseModels({ Listing: { findOne: async () => null } }));
+	assert.ok(
+		interaction.replies.some((r) => r.includes("No listing found")),
+		"missing listing handled",
+	);
+});
+
+test("confirm: rejects when the wrong seller is specified", async () => {
+	const interaction = makeInteraction({
+		options: { getUser: () => createMockUser("wrong123"), getString: () => "purchase" },
+	});
+	await confirm.execute(interaction, baseModels());
+	assert.ok(
+		interaction.replies.some((r) => r.includes("not the seller of this listing")),
+		"seller mismatch rejected",
+	);
+});
+
+test("confirm: database error handled gracefully", async () => {
+	const interaction = makeInteraction();
+	await confirm.execute(
+		interaction,
+		baseModels({
+			Transaction: {
+				create: async () => {
+					throw new Error("Database error");
+				},
+			},
+		}),
+	);
+	assert.ok(
+		interaction.replies.some((r) => r.includes("An error occurred")),
+		"error surfaced to user, not thrown",
+	);
+});
