@@ -1,38 +1,9 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const parseThreadName = require("../utils/parseThreadName");
 const { getUserReputation } = require("../utils/reputation");
-
-// Helper function to update forum tags based on listing type
-async function updateForumTag(thread, type) {
-	try {
-		const forumChannel = thread.parent;
-		if (!forumChannel || forumChannel.type !== 15) return; // Not a forum channel
-
-		let tagName;
-		switch (type) {
-			case "SELL":
-				tagName = "for sale";
-				break;
-			case "BUY":
-				tagName = "want to buy";
-				break;
-			case "TRADE":
-				tagName = "want to trade";
-				break;
-			default:
-				return;
-		}
-
-		const tag = forumChannel.availableTags.find(
-			(t) => t.name.toLowerCase() === tagName.toLowerCase()
-		);
-		if (tag) {
-			await thread.setAppliedTags([tag.id]);
-		}
-	} catch (error) {
-		console.error("Error updating forum tag:", error);
-	}
-}
+const { updateForumTag } = require("../utils/forumTags");
+const { createPendingListing, fetchFirstMessage } = require("../utils/listings");
+const { buildConfirmationRow, createAuthorFilter } = require("../utils/components");
+const { replyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	name: "threadUpdate",
@@ -60,8 +31,7 @@ module.exports = {
 				// Title is now properly formatted, create a new listing
 				let firstMessage;
 				try {
-					const messages = await newThread.messages.fetch({ limit: 1 });
-					firstMessage = messages.first();
+					firstMessage = await fetchFirstMessage(newThread);
 				} catch (err) {
 					console.error("[threadUpdate] Error fetching first message:", err);
 					return;
@@ -72,41 +42,8 @@ module.exports = {
 				}
 
 				// Create a Listing with status 'pending'
-				let newListing;
 				try {
-					if (!User || !Listing) throw new Error("Database models not provided.");
-
-					// Ensure the User exists
-					const [user] = await User.findOrCreate({
-						where: { id: firstMessage.author.id },
-						defaults: { username: firstMessage.author.username },
-					});
-
-					newListing = await Listing.create({
-						userId: firstMessage.author.id,
-						region: parsed.region,
-						type: parsed.type,
-						item: parsed.item,
-						offer: parsed.offer,
-						threadId: newThread.id,
-						status: "pending", // initial status
-					});
-
-					// Apply "pending" tag to the forum thread
-					try {
-						const forumChannel = newThread.parent;
-						if (forumChannel && forumChannel.type === 15) {
-							// Forum channel type
-							const pendingTag = forumChannel.availableTags.find(
-								(tag) => tag.name.toLowerCase() === "pending"
-							);
-							if (pendingTag) {
-								await newThread.setAppliedTags([pendingTag.id]);
-							}
-						}
-					} catch (error) {
-						console.error("Error applying pending tag:", error);
-					}
+					await createPendingListing(newThread, parsed, firstMessage.author, { User, Listing });
 				} catch (error) {
 					console.error("Error creating initial Listing from update:", error);
 					newThread.send("An error occurred while creating your listing. Please try again.");
@@ -117,29 +54,10 @@ module.exports = {
 				const confirmation = `<@${firstMessage.author.id}> **Thread updated!** It looks like you ${typeText} \`${parsed.item}\` in exchange for \`${parsed.offer}\`. Is this correct?`;
 				const confirmationMessage = await newThread.send({
 					content: confirmation,
-					components: [
-						new ActionRowBuilder().addComponents(
-							new ButtonBuilder()
-								.setCustomId("confirm")
-								.setLabel("Confirm")
-								.setStyle(ButtonStyle.Success),
-							new ButtonBuilder()
-								.setCustomId("trade")
-								.setLabel("Trade")
-								.setStyle(ButtonStyle.Primary),
-							new ButtonBuilder().setCustomId("deny").setLabel("Deny").setStyle(ButtonStyle.Danger)
-						),
-					],
+					components: [buildConfirmationRow()],
 				});
 
-				const filter = (interaction) => {
-					return (
-						interaction.user &&
-						interaction.customId &&
-						["confirm", "trade", "deny"].includes(interaction.customId) &&
-						interaction.user.id === firstMessage?.author?.id
-					);
-				};
+				const filter = createAuthorFilter(firstMessage?.author?.id);
 
 				const collector = confirmationMessage.createMessageComponentCollector({ filter });
 
@@ -147,10 +65,10 @@ module.exports = {
 					if (!interaction.isButton()) return;
 
 					if (interaction.user.id !== firstMessage?.author?.id) {
-						await interaction.reply({
-							content: "Only the listing author can respond to this confirmation.",
-							flags: 64,
-						});
+						await replyEphemeral(
+							interaction,
+							"Only the listing author can respond to this confirmation."
+						);
 						return;
 					}
 
@@ -276,8 +194,7 @@ module.exports = {
 
 			let firstMessage;
 			try {
-				const messages = await newThread.messages.fetch({ limit: 1 });
-				firstMessage = messages.first();
+				firstMessage = await fetchFirstMessage(newThread);
 			} catch (err) {
 				console.error("[threadUpdate] Error fetching first message:", err);
 				return;
@@ -291,29 +208,10 @@ module.exports = {
 			const confirmation = `<@${firstMessage.author.id}> **Thread updated!** It looks like you ${typeText} \`${parsed.item}\` in exchange for \`${parsed.offer}\`. Is this still correct?`;
 			const confirmationMessage = await newThread.send({
 				content: confirmation,
-				components: [
-					new ActionRowBuilder().addComponents(
-						new ButtonBuilder()
-							.setCustomId("confirm")
-							.setLabel("Confirm")
-							.setStyle(ButtonStyle.Success),
-						new ButtonBuilder()
-							.setCustomId("trade")
-							.setLabel("Trade")
-							.setStyle(ButtonStyle.Primary),
-						new ButtonBuilder().setCustomId("deny").setLabel("Deny").setStyle(ButtonStyle.Danger)
-					),
-				],
+				components: [buildConfirmationRow()],
 			});
 
-			const filter = (interaction) => {
-				return (
-					interaction.user &&
-					interaction.customId &&
-					["confirm", "trade", "deny"].includes(interaction.customId) &&
-					interaction.user.id === firstMessage?.author?.id
-				);
-			};
+			const filter = createAuthorFilter(firstMessage?.author?.id);
 
 			const collector = confirmationMessage.createMessageComponentCollector({ filter });
 
@@ -321,10 +219,10 @@ module.exports = {
 				if (!interaction.isButton()) return;
 
 				if (interaction.user.id !== firstMessage?.author?.id) {
-					await interaction.reply({
-						content: "Only the listing author can respond to this confirmation.",
-						flags: 64,
-					});
+					await replyEphemeral(
+						interaction,
+						"Only the listing author can respond to this confirmation."
+					);
 					return;
 				}
 

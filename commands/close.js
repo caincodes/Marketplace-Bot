@@ -1,4 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { applyForumTag, getClosePrefix } = require("../utils/forumTags");
+const { replyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -16,56 +18,30 @@ module.exports = {
 		),
 	async execute(interaction, { Listing, client }) {
 		if (!interaction.channel.isThread()) {
-			return await interaction.reply({
-				content: "This command must be run inside a forum post (thread).",
-				flags: 64,
-			});
+			return await replyEphemeral(
+				interaction,
+				"This command must be run inside a forum post (thread)."
+			);
 		}
 
 		try {
 			const listing = await Listing.findOne({ where: { threadId: interaction.channel.id } });
 			if (!listing) {
-				return await interaction.reply({
-					content: "No listing found for this forum post.",
-					flags: 64,
-				});
+				return await replyEphemeral(interaction, "No listing found for this forum post.");
 			}
 
 			if (listing.userId !== interaction.user.id) {
-				return await interaction.reply({
-					content: "Only the listing poster can close this listing.",
-					flags: 64,
-				});
+				return await replyEphemeral(interaction, "Only the listing poster can close this listing.");
 			}
 
 			if (listing.closed) {
-				return await interaction.reply({
-					content: "This listing is already closed.",
-					flags: 64,
-				});
+				return await replyEphemeral(interaction, "This listing is already closed.");
 			}
 
 			const reason = interaction.options.getString("reason");
 
 			// Determine prefix based on listing type and reason
-			let prefix;
-			if (reason === "withdrawn") {
-				prefix = "[WITHDRAWN]";
-			} else {
-				switch (listing.type) {
-					case "SELL":
-						prefix = "[SOLD]";
-						break;
-					case "BUY":
-						prefix = "[FOUND]";
-						break;
-					case "TRADE":
-						prefix = "[TRADED]";
-						break;
-					default:
-						prefix = "[CLOSED]";
-				}
-			}
+			const prefix = reason === "withdrawn" ? "[WITHDRAWN]" : getClosePrefix(listing.type);
 
 			// Update thread name
 			const newName = `${prefix} ${interaction.channel.name}`;
@@ -76,29 +52,15 @@ module.exports = {
 
 			// Update tags - remove all and add "closed"
 			try {
-				const forumChannel = interaction.channel.parent;
-				if (forumChannel && forumChannel.type === 15) {
-					const closedTag = forumChannel.availableTags.find(
-						(tag) => tag.name.toLowerCase() === "closed"
-					);
-					if (closedTag) {
-						await interaction.channel.setAppliedTags([closedTag.id]);
-					}
-				}
+				await applyForumTag(interaction.channel, "closed");
 			} catch (error) {
 				console.error("Error updating forum tags:", error);
 			}
 
-			await interaction.reply({
-				content: `✅ Listing closed!`,
-				flags: 64,
-			});
+			await replyEphemeral(interaction, `✅ Listing closed!`);
 		} catch (error) {
 			console.error("Error closing listing:", error);
-			await interaction.reply({
-				content: "An error occurred while closing the listing.",
-				flags: 64,
-			});
+			await replyEphemeral(interaction, "An error occurred while closing the listing.");
 		}
 	},
 };

@@ -4,6 +4,7 @@ const {
 	fetchTransactionAndListing,
 	formatForumLink,
 } = require("../../utils/forumLink");
+const { followUpEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "rateUser",
@@ -16,10 +17,10 @@ module.exports = {
 		const ratingValue = parts[4];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.followUp({
-				content: "You are not authorized to rate for this transaction.",
-				flags: 64,
-			});
+			return await followUpEphemeral(
+				interaction,
+				"You are not authorized to rate for this transaction."
+			);
 		}
 
 		try {
@@ -28,10 +29,7 @@ module.exports = {
 				Listing,
 			});
 			if (!transactionData) {
-				return await interaction.followUp({
-					content: "Transaction not found.",
-					flags: 64,
-				});
+				return await followUpEphemeral(interaction, "Transaction not found.");
 			}
 
 			const { transaction, listing } = transactionData;
@@ -75,10 +73,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error handling user rating:", error);
-			await interaction.followUp({
-				content: "An error occurred while submitting your rating.",
-				flags: 64,
-			});
+			await followUpEphemeral(interaction, "An error occurred while submitting your rating.");
 		}
 	},
 };

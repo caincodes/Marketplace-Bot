@@ -1,5 +1,4 @@
-const fs = require("fs");
-const path = require("path");
+const { replyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	name: "interactionCreate",
@@ -42,10 +41,7 @@ module.exports = {
 			// Only reply if we haven't already
 			if (!interaction.replied && !interaction.deferred) {
 				try {
-					await interaction.reply({
-						content: "An unexpected error occurred.",
-						flags: 64,
-					});
+					await replyEphemeral(interaction, "An unexpected error occurred.");
 				} catch (replyError) {
 					console.error("[Error] Error sending error reply:", replyError);
 				}

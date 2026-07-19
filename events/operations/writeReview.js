@@ -11,6 +11,7 @@ const {
 	fetchTransactionAndListing,
 	formatForumLink,
 } = require("../../utils/forumLink");
+const { replyEphemeral, followUpEphemeral, editReplyEphemeral } = require("../../utils/replies");
 
 // Helper to get rating emoji
 function getRatingEmoji(rating) {
@@ -25,19 +26,16 @@ module.exports = {
 		const raterId = parts[3];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.reply({
-				content: "You are not authorized to write a review for this transaction.",
-				flags: 64,
-			});
+			return await replyEphemeral(
+				interaction,
+				"You are not authorized to write a review for this transaction."
+			);
 		}
 
 		try {
 			const ratingRecord = await Rating.findByPk(ratingId);
 			if (!ratingRecord) {
-				return await interaction.reply({
-					content: "Rating record not found.",
-					flags: 64,
-				});
+				return await replyEphemeral(interaction, "Rating record not found.");
 			}
 
 			// Create and show the review modal
@@ -57,10 +55,7 @@ module.exports = {
 			await interaction.showModal(modal);
 		} catch (error) {
 			console.error("Error showing review modal:", error);
-			await interaction.reply({
-				content: "An error occurred while opening the review form.",
-				flags: 64,
-			});
+			await replyEphemeral(interaction, "An error occurred while opening the review form.");
 		}
 	},
 
@@ -73,10 +68,10 @@ module.exports = {
 		const raterId = parts[3];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.followUp({
-				content: "You are not authorized to complete this action.",
-				flags: 64,
-			});
+			return await followUpEphemeral(
+				interaction,
+				"You are not authorized to complete this action."
+			);
 		}
 
 		try {
@@ -85,10 +80,7 @@ module.exports = {
 				Listing,
 			});
 			if (!transactionData) {
-				return await interaction.followUp({
-					content: "Transaction not found.",
-					flags: 64,
-				});
+				return await followUpEphemeral(interaction, "Transaction not found.");
 			}
 
 			const { transaction, listing } = transactionData;
@@ -103,10 +95,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error skipping rating:", error);
-			await interaction.followUp({
-				content: "An error occurred while skipping the rating.",
-				flags: 64,
-			});
+			await followUpEphemeral(interaction, "An error occurred while skipping the rating.");
 		}
 	},
 
@@ -119,19 +108,16 @@ module.exports = {
 		const raterId = parts[3];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.followUp({
-				content: "You are not authorized to complete this action.",
-				flags: 64,
-			});
+			return await followUpEphemeral(
+				interaction,
+				"You are not authorized to complete this action."
+			);
 		}
 
 		try {
 			const ratingRecord = await Rating.findByPk(ratingId);
 			if (!ratingRecord) {
-				return await interaction.reply({
-					content: "Rating record not found.",
-					flags: 64,
-				});
+				return await replyEphemeral(interaction, "Rating record not found.");
 			}
 
 			// Mark review as completed (null means no review written)
@@ -156,10 +142,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error skipping review:", error);
-			await interaction.editReply({
-				content: "An error occurred while skipping the review.",
-				flags: 64,
-			});
+			await editReplyEphemeral(interaction, "An error occurred while skipping the review.");
 		}
 	},
 
@@ -172,10 +155,7 @@ module.exports = {
 		const raterId = parts[3];
 
 		if (interaction.user.id !== raterId) {
-			return await interaction.followUp({
-				content: "You are not authorized to submit this review.",
-				flags: 64,
-			});
+			return await followUpEphemeral(interaction, "You are not authorized to submit this review.");
 		}
 
 		try {
@@ -184,10 +164,7 @@ module.exports = {
 
 			const ratingRecord = await Rating.findByPk(ratingId);
 			if (!ratingRecord) {
-				return await interaction.followUp({
-					content: "Rating record not found.",
-					flags: 64,
-				});
+				return await followUpEphemeral(interaction, "Rating record not found.");
 			}
 
 			await ratingRecord.update({ review });
@@ -200,10 +177,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error submitting review:", error);
-			await interaction.followUp({
-				content: "An error occurred while submitting your review.",
-				flags: 64,
-			});
+			await followUpEphemeral(interaction, "An error occurred while submitting your review.");
 		}
 	},
 
@@ -241,10 +215,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error completing transaction:", error);
-			await interaction.editReply({
-				content: "An error occurred while completing the transaction.",
-				flags: 64,
-			});
+			await editReplyEphemeral(interaction, "An error occurred while completing the transaction.");
 		}
 	},
 };

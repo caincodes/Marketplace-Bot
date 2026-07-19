@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { replyEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "commandInteraction",
@@ -19,10 +20,7 @@ module.exports = {
 						await command.execute(interaction, { User, Listing, Transaction, Rating, client });
 					} catch (error) {
 						console.error(`Error executing command ${commandName}:`, error);
-						await interaction.reply({
-							content: "There was an error while executing this command!",
-							flags: 64,
-						});
+						await replyEphemeral(interaction, "There was an error while executing this command!");
 					}
 					return;
 				}

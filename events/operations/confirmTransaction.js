@@ -1,5 +1,6 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { getForumLink, formatForumLink } = require("../../utils/forumLink");
+const { buildRatingButtons } = require("../../utils/components");
+const { followUpEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "confirmTransaction",
@@ -14,19 +15,16 @@ module.exports = {
 		const action = parts[5];
 
 		if (interaction.user.id !== intendedUserId) {
-			return await interaction.followUp({
-				content: `Only <@${intendedUserId}> can confirm this transaction.`,
-				flags: 64,
-			});
+			return await followUpEphemeral(
+				interaction,
+				`Only <@${intendedUserId}> can confirm this transaction.`
+			);
 		}
 
 		try {
 			const transaction = await Transaction.findByPk(transactionId);
 			if (!transaction) {
-				return await interaction.followUp({
-					content: "Transaction not found.",
-					flags: 64,
-				});
+				return await followUpEphemeral(interaction, "Transaction not found.");
 			}
 
 			if (action === "confirm") {
@@ -67,25 +65,7 @@ module.exports = {
 					// Send NEW DM to the non-initiator with rating buttons
 					await otherUser.send({
 						content: ratingMessage,
-						components: [
-							new ActionRowBuilder().addComponents(
-								new ButtonBuilder()
-									.setCustomId(`rate_user_${transaction.id}_${otherUserId}_positive`)
-									.setLabel("Positive")
-									.setStyle(ButtonStyle.Success)
-									.setEmoji("👍"),
-								new ButtonBuilder()
-									.setCustomId(`rate_user_${transaction.id}_${otherUserId}_negative`)
-									.setLabel("Negative")
-									.setStyle(ButtonStyle.Danger)
-									.setEmoji("👎"),
-								new ButtonBuilder()
-									.setCustomId(`skip_rating_${transaction.id}_${otherUserId}`)
-									.setLabel("Skip")
-									.setStyle(ButtonStyle.Secondary)
-									.setEmoji("⏭️")
-							),
-						],
+						components: [buildRatingButtons(transaction.id, otherUserId)],
 					});
 				} catch (error) {
 					console.error(`Error sending rating prompt to ${otherUserId}:`, error);
@@ -99,25 +79,7 @@ module.exports = {
 
 					await interaction.editReply({
 						content: ratingMessage,
-						components: [
-							new ActionRowBuilder().addComponents(
-								new ButtonBuilder()
-									.setCustomId(`rate_user_${transaction.id}_${interaction.user.id}_positive`)
-									.setLabel("Positive")
-									.setStyle(ButtonStyle.Success)
-									.setEmoji("👍"),
-								new ButtonBuilder()
-									.setCustomId(`rate_user_${transaction.id}_${interaction.user.id}_negative`)
-									.setLabel("Negative")
-									.setStyle(ButtonStyle.Danger)
-									.setEmoji("👎"),
-								new ButtonBuilder()
-									.setCustomId(`skip_rating_${transaction.id}_${interaction.user.id}`)
-									.setLabel("Skip")
-									.setStyle(ButtonStyle.Secondary)
-									.setEmoji("⏭️")
-							),
-						],
+						components: [buildRatingButtons(transaction.id, interaction.user.id)],
 					});
 				} catch (error) {
 					console.error(`Error updating initiator's DM:`, error);
@@ -132,10 +94,7 @@ module.exports = {
 			}
 		} catch (error) {
 			console.error("Error handling transaction confirmation:", error);
-			await interaction.followUp({
-				content: "An error occurred while processing your confirmation.",
-				flags: 64,
-			});
+			await followUpEphemeral(interaction, "An error occurred while processing your confirmation.");
 		}
 	},
 };
