@@ -22,7 +22,30 @@ async function testThreadCreate() {
 	// Mock thread
 	const mockThread = {
 		name: "[EU-BE] [H] Test Item [W] €€€",
-		send: async (content) => console.log("Thread message:", content),
+		id: "thread123",
+		parent: {
+			type: 15, // Forum channel type
+			availableTags: [
+				{ id: "tag1", name: "pending" },
+				{ id: "tag2", name: "for sale" },
+				{ id: "tag3", name: "want to buy" },
+				{ id: "tag4", name: "want to trade" },
+			],
+		},
+		setAppliedTags: async (tags) => {},
+		send: async (content) => {
+			const msg = {
+				createMessageComponentCollector: (options) => ({
+					on: (event, handler) => {
+						if (event === "end") {
+							handler(new Map());
+						}
+					},
+					stop: () => {},
+				}),
+			};
+			return msg;
+		},
 		fetchStarterMessage: async () => mockFirstMessage,
 	};
 

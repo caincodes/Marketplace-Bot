@@ -61,7 +61,9 @@ async function testInteractionCreateEvent() {
 			isButton: () => true,
 			customId: "confirm_transaction_1_user1_user2_confirm",
 			user: { id: "user2" },
-			update: async (options) => console.log("Button update:", options.content),
+			deferUpdate: async () => {},
+			editReply: async (options) => console.log("Button update:", options.content),
+			followUp: async (options) => console.log("Follow-up message:", options.content),
 		};
 		await interactionCreate.execute(confirmButtonInteraction, { ...models, client: mockClient });
 		console.log("✓ Test 2 passed: Transaction confirmed");
@@ -72,7 +74,9 @@ async function testInteractionCreateEvent() {
 			isButton: () => true,
 			customId: "confirm_transaction_1_user1_user2_deny",
 			user: { id: "user2" },
-			update: async (options) => console.log("Button update:", options.content),
+			deferUpdate: async () => {},
+			editReply: async (options) => console.log("Button update:", options.content),
+			followUp: async (options) => console.log("Follow-up message:", options.content),
 		};
 		await interactionCreate.execute(denyButtonInteraction, models);
 		console.log("✓ Test 3 passed: Transaction denied");
@@ -83,6 +87,8 @@ async function testInteractionCreateEvent() {
 			isButton: () => true,
 			customId: "rate_positive_1_user1",
 			user: { id: "user1" },
+			deferUpdate: async () => {},
+			editReply: async (options) => console.log("Button update:", options.content),
 			showModal: async (modal) => console.log("Modal shown:", modal.data.title),
 		};
 		await interactionCreate.execute(rateButtonInteraction, models);
@@ -94,6 +100,9 @@ async function testInteractionCreateEvent() {
 			isButton: () => false,
 			isModalSubmit: () => true,
 			customId: "rating_modal_1_user1",
+			user: { id: "user1" },
+			deferUpdate: async () => {},
+			editReply: async (options) => console.log("Modal reply:", options.content),
 			fields: {
 				getTextInputValue: (id) => (id === "rating" ? "positive" : "Good seller"),
 			},
@@ -108,7 +117,9 @@ async function testInteractionCreateEvent() {
 			isButton: () => true,
 			customId: "confirm_transaction_1_user1_user2_confirm",
 			user: { id: "unauthorized" },
-			reply: async (options) => console.log("Unauthorized reply:", options.content),
+			deferUpdate: async () => {},
+			editReply: async (options) => console.log("Unauthorized reply:", options.content),
+			followUp: async (options) => console.log("Follow-up message:", options.content),
 		};
 		await interactionCreate.execute(unauthorizedInteraction, models);
 		console.log("✓ Test 6 passed: Unauthorized access blocked");
