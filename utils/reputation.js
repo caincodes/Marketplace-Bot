@@ -10,14 +10,14 @@ async function getUserReputation(userId, { Listing, Transaction, Rating }) {
 	try {
 		const listings = await Listing.findAll({
 			where: { userId },
-		}).catch(() => []);
+		});
 
 		const transactions = await Transaction.findAll({
 			where: {
 				[Op.or]: [{ sellerId: userId }, { buyerId: userId }],
 				status: "confirmed",
 			},
-		}).catch(() => []);
+		});
 
 		const now = Math.floor(Date.now() / 1000);
 		let response = `**Marketplace History for <@${userId}>** (as of <t:${now}:R>)\n\n`;
@@ -41,7 +41,7 @@ async function getUserReputation(userId, { Listing, Transaction, Rating }) {
 			where: {
 				rateeId: userId,
 			},
-		}).catch(() => []);
+		});
 
 		// Calculate reputation based on positive/negative ratings
 		if (ratings && ratings.length > 0) {

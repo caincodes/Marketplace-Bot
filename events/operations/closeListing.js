@@ -37,7 +37,10 @@ module.exports = {
 			// Get the thread channel
 			const thread = await client.channels.fetch(listing.threadId);
 			if (!thread) {
-				return await followUpEphemeral(interaction, "Forum post not found.");
+				return await interaction.followUp({
+					content: "Forum post not found.",
+					flags: 64,
+				});
 			}
 
 			// Determine prefix based on listing type
