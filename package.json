@@ -1,19 +1,19 @@
 {
-  "name": "marketplace-bot",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "@huggingface/transformers": "^3.8.1",
-    "discord.js": "^14.25.1",
-    "dotenv": "^17.2.3",
-    "sequelize": "^6.37.7",
-    "sqlite3": "^5.1.7"
-  }
+	"name": "marketplace-bot",
+	"version": "1.0.0",
+	"main": "index.js",
+	"scripts": {
+		"test": "node runAllTests.js"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"dependencies": {
+		"@huggingface/transformers": "^3.8.1",
+		"discord.js": "^14.25.1",
+		"dotenv": "^17.2.3",
+		"sequelize": "^6.37.7",
+		"sqlite3": "^5.1.7"
+	}
 }
