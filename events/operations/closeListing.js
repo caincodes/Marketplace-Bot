@@ -1,4 +1,5 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { applyForumTag, getClosePrefix } = require("../../utils/forumTags");
+const { followUpEphemeral, editReplyEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "closeListing",
@@ -10,33 +11,27 @@ module.exports = {
 		const posterId = parts[3];
 
 		if (interaction.user.id !== posterId) {
-			return await interaction.followUp({
-				content: "Only the listing poster can close this listing.",
-				flags: 64,
-			});
+			return await followUpEphemeral(
+				interaction,
+				"Only the listing poster can close this listing."
+			);
 		}
 
 		try {
 			const listing = await Listing.findByPk(listingId);
 			if (!listing) {
-				return await interaction.followUp({
-					content: "Listing not found.",
-					flags: 64,
-				});
+				return await followUpEphemeral(interaction, "Listing not found.");
 			}
 
 			if (listing.userId !== posterId) {
-				return await interaction.followUp({
-					content: "You are not authorized to close this listing.",
-					flags: 64,
-				});
+				return await followUpEphemeral(
+					interaction,
+					"You are not authorized to close this listing."
+				);
 			}
 
 			if (listing.closed) {
-				return await interaction.followUp({
-					content: "This listing is already closed.",
-					flags: 64,
-				});
+				return await followUpEphemeral(interaction, "This listing is already closed.");
 			}
 
 			// Get the thread channel
@@ -49,20 +44,7 @@ module.exports = {
 			}
 
 			// Determine prefix based on listing type
-			let prefix;
-			switch (listing.type) {
-				case "SELL":
-					prefix = "[SOLD]";
-					break;
-				case "BUY":
-					prefix = "[FOUND]";
-					break;
-				case "TRADE":
-					prefix = "[TRADED]";
-					break;
-				default:
-					prefix = "[CLOSED]";
-			}
+			const prefix = getClosePrefix(listing.type);
 
 			// Update thread name
 			const newName = `${prefix} ${thread.name}`;
@@ -73,15 +55,7 @@ module.exports = {
 
 			// Update tags - remove all and add "closed"
 			try {
-				const forumChannel = thread.parent;
-				if (forumChannel && forumChannel.type === 15) {
-					const closedTag = forumChannel.availableTags.find(
-						(tag) => tag.name.toLowerCase() === "closed"
-					);
-					if (closedTag) {
-						await thread.setAppliedTags([closedTag.id]);
-					}
-				}
+				await applyForumTag(thread, "closed");
 			} catch (error) {
 				console.error("Error updating forum tags:", error);
 			}
@@ -92,10 +66,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error closing listing:", error);
-			await interaction.editReply({
-				content: "An error occurred while closing the listing.",
-				flags: 64,
-			});
+			await editReplyEphemeral(interaction, "An error occurred while closing the listing.");
 		}
 	},
 };

@@ -1,4 +1,5 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
+const { replyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -20,10 +21,10 @@ module.exports = {
 		),
 	async execute(interaction, { Listing, Transaction, client }) {
 		if (!interaction.channel.isThread()) {
-			return await interaction.reply({
-				content: "This command must be run inside a forum post (thread).",
-				flags: 64,
-			});
+			return await replyEphemeral(
+				interaction,
+				"This command must be run inside a forum post (thread)."
+			);
 		}
 
 		const otherUser = interaction.options.getUser("user");
@@ -31,27 +32,18 @@ module.exports = {
 
 		// Prevent selecting yourself
 		if (otherUser.id === interaction.user.id) {
-			return await interaction.reply({
-				content: "You cannot confirm a transaction with yourself.",
-				flags: 64,
-			});
+			return await replyEphemeral(interaction, "You cannot confirm a transaction with yourself.");
 		}
 
 		// Prevent selecting a bot
 		if (otherUser.bot) {
-			return await interaction.reply({
-				content: "You cannot confirm a transaction with a bot.",
-				flags: 64,
-			});
+			return await replyEphemeral(interaction, "You cannot confirm a transaction with a bot.");
 		}
 
 		try {
 			const listing = await Listing.findOne({ where: { threadId: interaction.channel.id } });
 			if (!listing) {
-				return await interaction.reply({
-					content: "No listing found for this forum post.",
-					flags: 64,
-				});
+				return await replyEphemeral(interaction, "No listing found for this forum post.");
 			}
 
 			// Determine if initiator is the seller
@@ -67,10 +59,10 @@ module.exports = {
 				buyerId = interaction.user.id;
 				sellerId = otherUser.id;
 				if (sellerId !== listing.userId) {
-					return await interaction.reply({
-						content: "The specified user is not the seller of this listing.",
-						flags: 64,
-					});
+					return await replyEphemeral(
+						interaction,
+						"The specified user is not the seller of this listing."
+					);
 				}
 				recipient = otherUser; // Send confirmation to seller
 			}
@@ -122,16 +114,10 @@ module.exports = {
 				],
 			});
 
-			await interaction.reply({
-				content: "Transaction confirmation sent.",
-				flags: 64,
-			});
+			await replyEphemeral(interaction, "Transaction confirmation sent.");
 		} catch (error) {
 			console.error("Error initiating transaction:", error);
-			await interaction.reply({
-				content: "An error occurred while initiating the transaction.",
-				flags: 64,
-			});
+			await replyEphemeral(interaction, "An error occurred while initiating the transaction.");
 		}
 	},
 };

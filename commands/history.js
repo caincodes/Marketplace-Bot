@@ -1,6 +1,7 @@
 process.env.ORT_LOG_SEVERITY_LEVEL = "3"; // suppress ONNXRuntime unused initializer warnings
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const { getUserReputation } = require("../utils/reputation");
+const { EPHEMERAL, editReplyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -11,18 +12,15 @@ module.exports = {
 		),
 	async execute(interaction, models) {
 		try {
-			await interaction.deferReply({ flags: 64 });
+			await interaction.deferReply({ flags: EPHEMERAL });
 			const targetUser = interaction.options.getUser("user") || interaction.user;
 
 			const response = await getUserReputation(targetUser.id, models);
 
-			await interaction.editReply({ content: response, flags: 64 });
+			await editReplyEphemeral(interaction, response);
 		} catch (error) {
 			console.error("Error fetching history:", error);
-			await interaction.editReply({
-				content: "An error occurred while fetching the history.",
-				flags: 64,
-			});
+			await editReplyEphemeral(interaction, "An error occurred while fetching the history.");
 		}
 	},
 };
