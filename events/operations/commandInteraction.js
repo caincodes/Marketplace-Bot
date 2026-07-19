@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-const { replyEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "commandInteraction",

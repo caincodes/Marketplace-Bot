@@ -1,5 +1,3 @@
-const { replyEphemeral } = require("../utils/replies");
-
 module.exports = {
 	name: "interactionCreate",
 	async execute(interaction, models) {
