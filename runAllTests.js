@@ -9,6 +9,15 @@ const testFiles = [
 	"./tests/parseThreadName.test.js",
 	"./tests/history.test.js",
 	"./tests/threadCreate.test.js",
+	"./tests/threadUpdate.test.js",
+	"./tests/close.test.js",
+	"./tests/closeListing.test.js",
+	"./tests/commandInteraction.test.js",
+	"./tests/confirmTransaction.test.js",
+	"./tests/rateUser.test.js",
+	"./tests/writeReview.test.js",
+	"./tests/forumLink.test.js",
+	"./tests/reputation.test.js",
 ];
 
 async function runTestsSequentially() {
