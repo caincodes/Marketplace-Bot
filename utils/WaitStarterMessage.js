@@ -14,4 +14,25 @@ async function WaitStarterMessage(thread) {
 	}
 }
 
+/**
+ * Retry WaitStarterMessage with a linear backoff, giving up after `attempts`
+ * tries so a deleted starter message can't spin forever against the API.
+ * @param {Object} thread - Discord thread
+ * @param {Object} [options]
+ * @param {number} [options.attempts=5] - Maximum number of fetches
+ * @param {number} [options.delayMs=1000] - Base delay between fetches
+ * @returns {Promise<Object|null>} The starter message, or null if it never appeared
+ */
+async function waitForStarterMessage(thread, { attempts = 5, delayMs = 1000 } = {}) {
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		const message = await WaitStarterMessage(thread);
+		if (message) return message;
+		if (attempt < attempts) {
+			await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+		}
+	}
+	return null;
+}
+
 module.exports = WaitStarterMessage;
+module.exports.waitForStarterMessage = waitForStarterMessage;

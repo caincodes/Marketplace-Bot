@@ -16,26 +16,13 @@ function makeThread(name) {
 			// minimal collector stub so collector paths don't crash
 			createMessageComponentCollector: () => ({ on: () => {} }),
 		}),
-		messages: {
-			fetch: async () => new Map([["m1", { author: { id: "u1", username: "poster" } }]]),
-		},
+		fetchStarterMessage: async () => ({ author: { id: "u1", username: "poster" } }),
 	};
-}
-
-// Map.first() shim used by discord.js Collections; the code calls messages.fetch(...).first()
-function withFirst(thread) {
-	const originalFetch = thread.messages.fetch;
-	thread.messages.fetch = async () => {
-		const map = await originalFetch();
-		map.first = () => map.values().next().value;
-		return map;
-	};
-	return thread;
 }
 
 function baseModels(overrides = {}) {
 	return {
-		User: { findOrCreate: async () => [{ id: "u1" }, false] },
+		User: { upsert: async () => [{}, true] },
 		Listing: {
 			findOne: async () => null,
 			create: async () => ({ id: 1 }),
@@ -57,7 +44,22 @@ test("threadUpdate: unchanged name is a no-op", async () => {
 });
 
 test("threadUpdate: returns early when models are missing", async () => {
-	await threadUpdate.execute({ name: "old" }, { name: VALID_NAME }, {});
+	const thread = makeThread(VALID_NAME);
+	let touched = false;
+	thread.send = async () => (touched = true);
+	thread.fetchStarterMessage = async () => (touched = true);
+	await threadUpdate.execute({ name: "old" }, thread, {});
+	assert.strictEqual(touched, false, "no Discord calls without models");
+});
+
+test("threadUpdate: ignores threads outside forum channels", async () => {
+	let findOneCalled = false;
+	await threadUpdate.execute(
+		{ name: "old" },
+		{ ...makeThread(VALID_NAME), parent: { type: 0 } },
+		baseModels({ Listing: { findOne: async () => (findOneCalled = true) } }),
+	);
+	assert.strictEqual(findOneCalled, false, "non-forum thread ignored");
 });
 
 test("threadUpdate: confirmed listing updates its fields on a valid rename", async () => {
@@ -119,7 +121,7 @@ test("threadUpdate: pending listing with valid new name updates fields and re-pr
 	let pendingUpdated = null;
 	await threadUpdate.execute(
 		{ name: "old" },
-		withFirst(makeThread(OTHER_VALID_NAME)),
+		makeThread(OTHER_VALID_NAME),
 		baseModels({
 			Listing: {
 				findOne: async () => ({
@@ -138,7 +140,7 @@ test("threadUpdate: no existing listing + valid name creates a new listing", asy
 	let createdData = null;
 	await threadUpdate.execute(
 		{ name: "old" },
-		withFirst(makeThread(VALID_NAME)),
+		makeThread(VALID_NAME),
 		baseModels({
 			Listing: {
 				findOne: async () => null,
@@ -152,6 +154,30 @@ test("threadUpdate: no existing listing + valid name creates a new listing", asy
 	assert.ok(createdData, "listing created");
 	assert.strictEqual(createdData.type, "SELL", "created with parsed type");
 	assert.strictEqual(createdData.status, "pending", "created as pending");
+});
+
+test("threadUpdate: new listing is attributed to the thread starter, not the latest message", async () => {
+	let createdData = null;
+	const thread = makeThread(VALID_NAME);
+	thread.messages = {
+		fetch: async () => {
+			throw new Error("latest message must not be used to identify the author");
+		},
+	};
+	await threadUpdate.execute(
+		{ name: "old" },
+		thread,
+		baseModels({
+			Listing: {
+				findOne: async () => null,
+				create: async (data) => {
+					createdData = data;
+					return { id: 1 };
+				},
+			},
+		}),
+	);
+	assert.strictEqual(createdData.userId, "u1", "author taken from starter message");
 });
 
 test("threadUpdate: no existing listing + invalid name does nothing", async () => {
@@ -169,7 +195,8 @@ test("threadUpdate: no existing listing + invalid name does nothing", async () =
 	assert.strictEqual(created, false, "no listing created for invalid rename");
 });
 
-test("threadUpdate: errors in execute are caught", async () => {
+test("threadUpdate: errors in execute are caught and logged", async (t) => {
+	const errors = t.mock.method(console, "error", () => {});
 	await threadUpdate.execute(
 		{ name: "old" },
 		makeThread(VALID_NAME),
@@ -181,4 +208,89 @@ test("threadUpdate: errors in execute are caught", async () => {
 			},
 		}),
 	);
+	assert.ok(
+		errors.mock.calls.some((c) =>
+			String(c.arguments[0]).includes("[threadUpdate] Error in execute"),
+		),
+		"error logged",
+	);
+});
+
+test("threadUpdate: re-prompting retires the previous prompt's buttons", async () => {
+	const thread = makeThread(OTHER_VALID_NAME);
+	thread.id = "thread-reprompt";
+	let nextId = 1;
+	const edited = [];
+	thread.send = async () => ({ id: `prompt${nextId++}` });
+	thread.messages = { edit: async (id, opts) => edited.push({ id, opts }) };
+	const models = baseModels({
+		Listing: {
+			findOne: async () => ({ status: "pending", userId: "u1", update: async () => {} }),
+		},
+	});
+	await threadUpdate.execute({ name: "old" }, thread, models);
+	await threadUpdate.execute({ name: "older" }, thread, models);
+	assert.deepStrictEqual(
+		edited,
+		[{ id: "prompt1", opts: { components: [] } }],
+		"old prompt retired",
+	);
+});
+
+test("threadUpdate: closed listing is not re-prompted after the close rename", async () => {
+	let sent = false;
+	let updated = false;
+	const thread = makeThread(`[SOLD] ${VALID_NAME}`);
+	thread.send = async () => (sent = true);
+	await threadUpdate.execute(
+		{ name: VALID_NAME },
+		thread,
+		baseModels({
+			Listing: {
+				findOne: async () => ({
+					status: "pending",
+					closed: true,
+					update: async () => (updated = true),
+				}),
+			},
+		}),
+	);
+	assert.strictEqual(sent, false, "no prompt sent");
+	assert.strictEqual(updated, false, "closed listing untouched");
+});
+
+test("threadUpdate: confirmed TRADE listing keeps its type on rename", async () => {
+	let updatedData = null;
+	await threadUpdate.execute(
+		{ name: "old" },
+		makeThread(VALID_NAME),
+		baseModels({
+			Listing: {
+				findOne: async () => ({
+					status: "confirmed",
+					type: "TRADE",
+					update: async (data) => (updatedData = data),
+				}),
+			},
+		}),
+	);
+	assert.strictEqual(updatedData.type, "TRADE", "trade type preserved");
+	assert.strictEqual(updatedData.item, "Test Item", "other fields still updated");
+});
+
+test("threadUpdate: confirmed listing type change updates the forum tag", async () => {
+	let appliedTags = null;
+	const thread = makeThread(OTHER_VALID_NAME);
+	thread.parent.availableTags.push({ id: "tag-buy", name: "want to buy" });
+	thread.setAppliedTags = async (tags) => (appliedTags = tags);
+	await threadUpdate.execute(
+		{ name: "old" },
+		thread,
+		baseModels({
+			Listing: {
+				findOne: async () => ({ status: "confirmed", type: "SELL", update: async () => {} }),
+			},
+		}),
+	);
+	assert.deepStrictEqual(appliedTags, ["tag-buy"], "tag switched to want to buy");
 });

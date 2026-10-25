@@ -1,6 +1,9 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const { applyForumTag, getClosePrefix } = require("../utils/forumTags");
-const { replyEphemeral } = require("../utils/replies");
+const { EPHEMERAL, replyEphemeral } = require("../utils/replies");
+
+// Discord's maximum thread name length
+const MAX_THREAD_NAME_LENGTH = 100;
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -13,29 +16,34 @@ module.exports = {
 				.setRequired(true)
 				.addChoices(
 					{ name: "Sold/Found Item", value: "sold" },
-					{ name: "No Longer Needed", value: "withdrawn" }
-				)
+					{ name: "No Longer Needed", value: "withdrawn" },
+				),
 		),
-	async execute(interaction, { Listing, client }) {
+	async execute(interaction, { Listing }) {
 		if (!interaction.channel.isThread()) {
 			return await replyEphemeral(
 				interaction,
-				"This command must be run inside a forum post (thread)."
+				"This command must be run inside a forum post (thread).",
 			);
 		}
+
+		// Renames are rate limited (2 per 10 minutes per thread), so setName can
+		// take longer than the 3s interaction window; defer first.
+		await interaction.deferReply({ flags: EPHEMERAL });
+		const respond = (content) => interaction.editReply({ content });
 
 		try {
 			const listing = await Listing.findOne({ where: { threadId: interaction.channel.id } });
 			if (!listing) {
-				return await replyEphemeral(interaction, "No listing found for this forum post.");
+				return await respond("No listing found for this forum post.");
 			}
 
 			if (listing.userId !== interaction.user.id) {
-				return await replyEphemeral(interaction, "Only the listing poster can close this listing.");
+				return await respond("Only the listing poster can close this listing.");
 			}
 
 			if (listing.closed) {
-				return await replyEphemeral(interaction, "This listing is already closed.");
+				return await respond("This listing is already closed.");
 			}
 
 			const reason = interaction.options.getString("reason");
@@ -43,12 +51,17 @@ module.exports = {
 			// Determine prefix based on listing type and reason
 			const prefix = reason === "withdrawn" ? "[WITHDRAWN]" : getClosePrefix(listing.type);
 
-			// Update thread name
-			const newName = `${prefix} ${interaction.channel.name}`;
-			await interaction.channel.setName(newName);
-
-			// Mark listing as closed in database
+			// Mark closed before renaming so the rename's threadUpdate event sees a
+			// closed listing and doesn't re-prompt for confirmation.
 			await listing.update({ closed: true });
+
+			const newName = `${prefix} ${interaction.channel.name}`.slice(0, MAX_THREAD_NAME_LENGTH);
+			try {
+				await interaction.channel.setName(newName);
+			} catch (error) {
+				await listing.update({ closed: false });
+				throw error;
+			}
 
 			// Update tags - remove all and add "closed"
 			try {
@@ -57,10 +70,10 @@ module.exports = {
 				console.error("Error updating forum tags:", error);
 			}
 
-			await replyEphemeral(interaction, `✅ Listing closed!`);
+			await respond(`✅ Listing closed!`);
 		} catch (error) {
 			console.error("Error closing listing:", error);
-			await replyEphemeral(interaction, "An error occurred while closing the listing.");
+			await respond("An error occurred while closing the listing.");
 		}
 	},
 };

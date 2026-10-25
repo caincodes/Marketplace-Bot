@@ -15,11 +15,4 @@ function followUpEphemeral(interaction, content) {
 	return interaction.followUp({ content, flags: EPHEMERAL });
 }
 
-/**
- * Edit a deferred/replied interaction with an ephemeral text message.
- */
-function editReplyEphemeral(interaction, content) {
-	return interaction.editReply({ content, flags: EPHEMERAL });
-}
-
-module.exports = { EPHEMERAL, replyEphemeral, followUpEphemeral, editReplyEphemeral };
+module.exports = { EPHEMERAL, replyEphemeral, followUpEphemeral };

@@ -1,26 +1,14 @@
-const {
-	ActionRowBuilder,
-	ButtonBuilder,
-	ButtonStyle,
-	ModalBuilder,
-	TextInputBuilder,
-	TextInputStyle,
-} = require("discord.js");
+const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const {
 	getForumLink,
 	fetchTransactionAndListing,
 	formatForumLink,
 } = require("../../utils/forumLink");
-const { replyEphemeral, followUpEphemeral, editReplyEphemeral } = require("../../utils/replies");
-
-// Helper to get rating emoji
-function getRatingEmoji(rating) {
-	return rating === "positive" ? "👍" : "👎";
-}
+const { replyEphemeral, followUpEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "writeReview",
-	async execute(interaction, { User, Listing, Transaction, Rating, client }) {
+	async execute(interaction, { Rating }) {
 		const parts = interaction.customId.split("_");
 		const ratingId = parts[2];
 		const raterId = parts[3];
@@ -28,7 +16,7 @@ module.exports = {
 		if (interaction.user.id !== raterId) {
 			return await replyEphemeral(
 				interaction,
-				"You are not authorized to write a review for this transaction."
+				"You are not authorized to write a review for this transaction.",
 			);
 		}
 
@@ -60,7 +48,7 @@ module.exports = {
 	},
 
 	// Handle the skip rating action
-	async skipRating(interaction, { User, Listing, Transaction, Rating, client }) {
+	async skipRating(interaction, { Listing, Transaction, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
@@ -70,7 +58,7 @@ module.exports = {
 		if (interaction.user.id !== raterId) {
 			return await followUpEphemeral(
 				interaction,
-				"You are not authorized to complete this action."
+				"You are not authorized to complete this action.",
 			);
 		}
 
@@ -100,7 +88,7 @@ module.exports = {
 	},
 
 	// Handle the skip review action
-	async skipReview(interaction, { User, Listing, Transaction, Rating, client }) {
+	async skipReview(interaction, { Listing, Transaction, Rating, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
@@ -110,14 +98,14 @@ module.exports = {
 		if (interaction.user.id !== raterId) {
 			return await followUpEphemeral(
 				interaction,
-				"You are not authorized to complete this action."
+				"You are not authorized to complete this action.",
 			);
 		}
 
 		try {
 			const ratingRecord = await Rating.findByPk(ratingId);
 			if (!ratingRecord) {
-				return await replyEphemeral(interaction, "Rating record not found.");
+				return await followUpEphemeral(interaction, "Rating record not found.");
 			}
 
 			// Mark review as completed (null means no review written)
@@ -128,7 +116,9 @@ module.exports = {
 				Transaction,
 				Listing,
 			});
-			if (!transactionData) return;
+			if (!transactionData) {
+				return await followUpEphemeral(interaction, "Transaction not found.");
+			}
 
 			const { transaction, listing } = transactionData;
 			const forumLink = await getForumLink(transaction, listing, client);
@@ -142,12 +132,12 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error skipping review:", error);
-			await editReplyEphemeral(interaction, "An error occurred while skipping the review.");
+			await followUpEphemeral(interaction, "An error occurred while skipping the review.");
 		}
 	},
 
 	// Handle the modal submission
-	async submitReview(interaction, { User, Listing, Transaction, Rating, client }) {
+	async submitReview(interaction, { Listing, Transaction, Rating, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
@@ -170,7 +160,6 @@ module.exports = {
 			await ratingRecord.update({ review });
 
 			await this.checkTransactionCompletion(interaction, ratingRecord.transactionId, client, {
-				User,
 				Listing,
 				Transaction,
 				Rating,
@@ -189,7 +178,9 @@ module.exports = {
 				Transaction,
 				Listing,
 			});
-			if (!transactionData) return;
+			if (!transactionData) {
+				return await followUpEphemeral(interaction, "Transaction not found.");
+			}
 
 			const { transaction, listing } = transactionData;
 			const forumLink = await getForumLink(transaction, listing, client);
@@ -225,7 +216,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error completing transaction:", error);
-			await editReplyEphemeral(interaction, "An error occurred while completing the transaction.");
+			await followUpEphemeral(interaction, "An error occurred while completing the transaction.");
 		}
 	},
 };

@@ -10,24 +10,8 @@ function buildConfirmationRow() {
 	return new ActionRowBuilder().addComponents(
 		new ButtonBuilder().setCustomId("confirm").setLabel("Confirm").setStyle(ButtonStyle.Success),
 		new ButtonBuilder().setCustomId("trade").setLabel("Trade").setStyle(ButtonStyle.Primary),
-		new ButtonBuilder().setCustomId("deny").setLabel("Deny").setStyle(ButtonStyle.Danger)
+		new ButtonBuilder().setCustomId("deny").setLabel("Deny").setStyle(ButtonStyle.Danger),
 	);
-}
-
-/**
- * Create a collector filter that only accepts the listing author's
- * confirm/trade/deny button presses.
- * @param {string} authorId - The thread starter's user ID
- * @returns {(interaction: Object) => boolean}
- */
-function createAuthorFilter(authorId) {
-	return (interaction) =>
-		Boolean(
-			interaction.user &&
-			interaction.customId &&
-			CONFIRMATION_BUTTON_IDS.includes(interaction.customId) &&
-			interaction.user.id === authorId
-		);
 }
 
 /**
@@ -52,13 +36,12 @@ function buildRatingButtons(transactionId, userId) {
 			.setCustomId(`skip_rating_${transactionId}_${userId}`)
 			.setLabel("Skip")
 			.setStyle(ButtonStyle.Secondary)
-			.setEmoji("⏭️")
+			.setEmoji("⏭️"),
 	);
 }
 
 module.exports = {
 	CONFIRMATION_BUTTON_IDS,
 	buildConfirmationRow,
-	createAuthorFilter,
 	buildRatingButtons,
 };

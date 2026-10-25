@@ -29,7 +29,12 @@ async function safeFindAll(model, options, label) {
  */
 async function getUserReputation(userId, { Listing, Transaction, Rating }) {
 	try {
-		const listings = await safeFindAll(Listing, { where: { userId } }, "listings");
+		// Pending listings were never confirmed by their author, so don't count them
+		const listings = await safeFindAll(
+			Listing,
+			{ where: { userId, status: "confirmed" } },
+			"listings",
+		);
 
 		const transactions = await safeFindAll(
 			Transaction,

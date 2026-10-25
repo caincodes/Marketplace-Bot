@@ -39,7 +39,8 @@ test("forumLink: getForumLink returns empty string when guild missing", async ()
 	assert.strictEqual(link, "");
 });
 
-test("forumLink: getForumLink handles fetch error gracefully", async () => {
+test("forumLink: getForumLink handles fetch error gracefully", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const client = {
 		channels: {
 			fetch: async () => {

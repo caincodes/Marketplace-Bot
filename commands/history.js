@@ -1,14 +1,13 @@
-process.env.ORT_LOG_SEVERITY_LEVEL = "3"; // suppress ONNXRuntime unused initializer warnings
-const { SlashCommandBuilder } = require("@discordjs/builders");
+const { SlashCommandBuilder } = require("discord.js");
 const { getUserReputation } = require("../utils/reputation");
-const { EPHEMERAL, editReplyEphemeral } = require("../utils/replies");
+const { EPHEMERAL } = require("../utils/replies");
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("history")
 		.setDescription("View your (or another user's) marketplace history")
 		.addUserOption((option) =>
-			option.setName("user").setDescription("The user to view history for").setRequired(false)
+			option.setName("user").setDescription("The user to view history for").setRequired(false),
 		),
 	async execute(interaction, models) {
 		try {
@@ -17,10 +16,10 @@ module.exports = {
 
 			const response = await getUserReputation(targetUser.id, models);
 
-			await editReplyEphemeral(interaction, response);
+			await interaction.editReply({ content: response });
 		} catch (error) {
 			console.error("Error fetching history:", error);
-			await editReplyEphemeral(interaction, "An error occurred while fetching the history.");
+			await interaction.editReply({ content: "An error occurred while fetching the history." });
 		}
 	},
 };

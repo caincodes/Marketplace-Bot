@@ -35,7 +35,8 @@ test("commandInteraction: unknown command name is a no-op", async () => {
 	await commandInteraction.execute(interaction, models);
 });
 
-test("commandInteraction: errors thrown by a command are caught and reported", async () => {
+test("commandInteraction: errors thrown by a command are caught and reported", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const replies = [];
 	const interaction = {
 		commandName: "close",

@@ -53,7 +53,8 @@ test("reputation: 100% reputation computed", async () => {
 	assert.ok(response.includes("`100%` positive based on `2` ratings"), "100 percent");
 });
 
-test("reputation: per-query failures fall back to empty arrays", async () => {
+test("reputation: per-query failures fall back to empty arrays", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const models = {
 		Listing: { findAll: async () => Promise.reject(new Error("db down")) },
 		Transaction: { findAll: async () => Promise.reject(new Error("db down")) },
@@ -64,7 +65,24 @@ test("reputation: per-query failures fall back to empty arrays", async () => {
 	assert.ok(response.includes("doesn't have any ratings yet"), "ratings default to none");
 });
 
-test("reputation: fatal error returns error message", async () => {
+test("reputation: fatal error returns error message", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const response = await getUserReputation(userId, {});
 	assert.ok(response.includes("Error loading reputation data"), "error message returned");
+});
+
+test("reputation: only confirmed listings are counted", async () => {
+	let listingWhere = null;
+	const models = {
+		Listing: {
+			findAll: async ({ where }) => {
+				listingWhere = where;
+				return [];
+			},
+		},
+		Transaction: { findAll: async () => [] },
+		Rating: { findAll: async () => [] },
+	};
+	await getUserReputation(userId, models);
+	assert.deepStrictEqual(listingWhere, { userId, status: "confirmed" }, "filters to confirmed");
 });

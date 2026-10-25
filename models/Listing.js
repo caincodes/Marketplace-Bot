@@ -1,36 +1,36 @@
 const Sequelize = require("sequelize");
 
 module.exports = (sequelize) => {
-	return sequelize.define("Listing", {
-		id: {
-			type: Sequelize.INTEGER,
-			autoIncrement: true,
-			primaryKey: true,
-		},
-		userId: {
+	return sequelize.define(
+		"Listing",
+		{
+			id: {
+				type: Sequelize.INTEGER,
+				autoIncrement: true,
+				primaryKey: true,
+			},
+			userId: {
+				type: Sequelize.STRING,
+				allowNull: false,
+			},
+			region: Sequelize.STRING,
 			type: Sequelize.STRING,
-			allowNull: false,
+			item: Sequelize.TEXT,
+			offer: Sequelize.TEXT,
+			threadId: Sequelize.STRING,
+			status: {
+				type: Sequelize.ENUM("pending", "confirmed", "denied"),
+				defaultValue: "pending",
+			},
+			closed: {
+				type: Sequelize.BOOLEAN,
+				defaultValue: false,
+			},
 		},
-		region: Sequelize.STRING,
-		type: Sequelize.STRING,
-		item: Sequelize.TEXT,
-		offer: Sequelize.TEXT,
-		threadId: Sequelize.STRING,
-		transactionIds: {
-			type: Sequelize.JSON,
-			defaultValue: [],
+		{
+			// One listing per forum post. Declared as an index (not a column
+			// constraint) so sync() adds it to existing databases too.
+			indexes: [{ unique: true, fields: ["threadId"] }],
 		},
-		ratingIds: {
-			type: Sequelize.JSON,
-			defaultValue: [],
-		},
-		status: {
-			type: Sequelize.ENUM("pending", "confirmed", "denied"),
-			defaultValue: "pending",
-		},
-		closed: {
-			type: Sequelize.BOOLEAN,
-			defaultValue: false,
-		},
-	});
+	);
 };
