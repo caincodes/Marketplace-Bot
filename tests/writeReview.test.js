@@ -155,3 +155,20 @@ test("writeReview: submitReview rejects unauthorized user", async () => {
 		"authorization enforced",
 	);
 });
+
+test("writeReview: skipReview errors are reported without overwriting the DM", async () => {
+	const interaction = makeInteraction({ customId: "skip_review_50_rater123" });
+	await writeReview.skipReview(interaction, {
+		Rating: {
+			findByPk: async () => {
+				throw new Error("db error");
+			},
+		},
+		client,
+	});
+	assert.strictEqual(interaction.state.edits.length, 0, "DM content left intact");
+	assert.ok(
+		interaction.state.followUps.some((f) => f.includes("An error occurred")),
+		"error sent as follow-up",
+	);
+});

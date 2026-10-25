@@ -11,7 +11,7 @@ const {
 	fetchTransactionAndListing,
 	formatForumLink,
 } = require("../../utils/forumLink");
-const { replyEphemeral, followUpEphemeral, editReplyEphemeral } = require("../../utils/replies");
+const { replyEphemeral, followUpEphemeral } = require("../../utils/replies");
 
 // Helper to get rating emoji
 function getRatingEmoji(rating) {
@@ -142,7 +142,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error skipping review:", error);
-			await editReplyEphemeral(interaction, "An error occurred while skipping the review.");
+			await followUpEphemeral(interaction, "An error occurred while skipping the review.");
 		}
 	},
 
@@ -225,7 +225,7 @@ module.exports = {
 			});
 		} catch (error) {
 			console.error("Error completing transaction:", error);
-			await editReplyEphemeral(interaction, "An error occurred while completing the transaction.");
+			await followUpEphemeral(interaction, "An error occurred while completing the transaction.");
 		}
 	},
 };
