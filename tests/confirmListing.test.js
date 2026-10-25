@@ -1,21 +1,16 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const confirmListing = require("../events/operations/confirmListing");
+const { createInteraction } = require("./helpers/interaction");
 
 function makeInteraction(customId, userId = "author1") {
-	const state = { edits: [], followUps: [], deferred: false };
-	return {
-		state,
+	return createInteraction({
+		isButton: () => true,
 		customId,
 		channelId: "thread1",
 		channel: { parent: { type: 15, availableTags: [] }, setAppliedTags: async () => {} },
 		user: { id: userId },
-		deferUpdate: async () => {
-			state.deferred = true;
-		},
-		editReply: async (opts) => state.edits.push(opts.content),
-		followUp: async (opts) => state.followUps.push(opts.content),
-	};
+	});
 }
 
 function makeModels(listingOverrides = {}, updateResult = [1]) {
@@ -46,7 +41,7 @@ test("confirmListing: confirm marks the listing confirmed and shows reputation",
 	const models = makeModels();
 	const interaction = makeInteraction("confirm");
 	await confirmListing.execute(interaction, models);
-	assert.strictEqual(interaction.state.deferred, true, "deferred");
+	assert.strictEqual(interaction.deferred, true, "deferred");
 	assert.deepStrictEqual(models.updates[0], {
 		data: { status: "confirmed", type: "SELL" },
 		where: { id: 1, status: "pending" },

@@ -2,21 +2,15 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const { UniqueConstraintError } = require("sequelize");
 const rateUser = require("../events/operations/rateUser");
+const { createInteraction } = require("./helpers/interaction");
 
 function makeInteraction(overrides = {}) {
-	const state = { followUps: [], edits: [], deferred: false };
-	const interaction = {
-		state,
+	return createInteraction({
+		isButton: () => true,
 		customId: "rate_user_1_rater123_positive",
 		user: { id: "rater123" },
-		deferUpdate: async () => {
-			state.deferred = true;
-		},
-		followUp: async (opts) => state.followUps.push(opts.content),
-		editReply: async (opts) => state.edits.push(opts.content),
 		...overrides,
-	};
-	return interaction;
+	});
 }
 
 test("rateUser: creates rating and offers review options", async () => {
@@ -52,7 +46,7 @@ test("rateUser: creates rating and offers review options", async () => {
 	};
 	const interaction = makeInteraction();
 	await rateUser.execute(interaction, models);
-	assert.strictEqual(interaction.state.deferred, true, "deferred");
+	assert.strictEqual(interaction.deferred, true, "deferred");
 	assert.strictEqual(created.raterId, "rater123", "rater recorded");
 	assert.strictEqual(created.rateeId, "ratee456", "ratee derived from transaction");
 	assert.strictEqual(created.rating, "positive", "rating value from customId");

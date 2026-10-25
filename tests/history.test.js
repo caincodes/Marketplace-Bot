@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const history = require("../commands/history");
+const { createInteraction } = require("./helpers/interaction");
 
 function makeModels(overrides = {}) {
 	return {
@@ -31,23 +32,19 @@ function makeModels(overrides = {}) {
 }
 
 function makeInteraction(overrides = {}) {
-	const edits = [];
-	const interaction = {
-		edits,
+	return createInteraction({
+		isCommand: () => true,
 		user: { id: "123456789" },
 		options: { getUser: () => null },
-		deferReply: async () => {},
-		editReply: async (opts) => edits.push(opts.content),
 		...overrides,
-	};
-	return interaction;
+	});
 }
 
 test("history: displays reputation for a user with listings", async () => {
 	const interaction = makeInteraction();
 	await history.execute(interaction, makeModels());
 	assert.ok(
-		interaction.edits.some((e) => e.includes("Listings: `1` total")),
+		interaction.state.edits.some((e) => e.includes("Listings: `1` total")),
 		"listing count rendered",
 	);
 });
@@ -56,7 +53,7 @@ test("history: shows zero listings for a user with none", async () => {
 	const interaction = makeInteraction();
 	await history.execute(interaction, makeModels({ Listing: { findAll: async () => [] } }));
 	assert.ok(
-		interaction.edits.some((e) => e.includes("Listings: `0` total")),
+		interaction.state.edits.some((e) => e.includes("Listings: `0` total")),
 		"zero listings rendered",
 	);
 });
@@ -71,7 +68,7 @@ test("history: handles errors gracefully", async () => {
 	});
 	await history.execute(interaction, makeModels());
 	assert.ok(
-		interaction.edits.some((e) => e.includes("An error occurred while fetching the history")),
+		interaction.state.edits.some((e) => e.includes("An error occurred while fetching the history")),
 		"error surfaced to user",
 	);
 });

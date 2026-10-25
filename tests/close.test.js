@@ -1,11 +1,11 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const close = require("../commands/close");
+const { createInteraction } = require("./helpers/interaction");
 
 function makeInteraction(overrides = {}) {
-	const replies = [];
-	const interaction = {
-		replies,
+	const interaction = createInteraction({
+		isCommand: () => true,
 		user: { id: "poster123" },
 		channel: {
 			id: "thread123",
@@ -20,17 +20,8 @@ function makeInteraction(overrides = {}) {
 			},
 		},
 		options: { getString: () => "sold" },
-		reply: async (opts) => {
-			replies.push(opts.content);
-		},
-		deferReply: async () => {
-			interaction.deferred = true;
-		},
-		editReply: async (opts) => {
-			replies.push(opts.content);
-		},
 		...overrides,
-	};
+	});
 	return interaction;
 }
 
@@ -55,7 +46,7 @@ test("close: SELL listing closed with [SOLD] prefix", async () => {
 	assert.ok(interaction.channel.name.startsWith("[SOLD]"), "SELL uses [SOLD] prefix");
 	assert.deepStrictEqual(interaction.appliedTags, ["tag-closed"], "closed tag applied");
 	assert.ok(
-		interaction.replies.some((r) => r.includes("Listing closed")),
+		interaction.state.messages.some((r) => r.includes("Listing closed")),
 		"confirmation sent",
 	);
 });
@@ -80,13 +71,16 @@ test("close: non-thread channel is rejected", async () => {
 		Listing: { findOne: async () => makeListing() },
 		client: {},
 	});
-	assert.ok(interaction.replies[0].includes("must be run inside a forum post"), "thread error");
+	assert.ok(
+		interaction.state.messages[0].includes("must be run inside a forum post"),
+		"thread error",
+	);
 });
 
 test("close: missing listing handled", async () => {
 	const interaction = makeInteraction();
 	await close.execute(interaction, { Listing: { findOne: async () => null }, client: {} });
-	assert.ok(interaction.replies[0].includes("No listing found"), "no listing error");
+	assert.ok(interaction.state.messages[0].includes("No listing found"), "no listing error");
 });
 
 test("close: non-owner cannot close", async () => {
@@ -95,7 +89,7 @@ test("close: non-owner cannot close", async () => {
 		Listing: { findOne: async () => makeListing() },
 		client: {},
 	});
-	assert.ok(interaction.replies[0].includes("Only the listing poster"), "owner check");
+	assert.ok(interaction.state.messages[0].includes("Only the listing poster"), "owner check");
 });
 
 test("close: already-closed listing handled", async () => {
@@ -104,7 +98,7 @@ test("close: already-closed listing handled", async () => {
 		Listing: { findOne: async () => makeListing({ closed: true }) },
 		client: {},
 	});
-	assert.ok(interaction.replies[0].includes("already closed"), "already closed error");
+	assert.ok(interaction.state.messages[0].includes("already closed"), "already closed error");
 });
 
 test("close: database error handled", async () => {
@@ -117,7 +111,7 @@ test("close: database error handled", async () => {
 		},
 		client: {},
 	});
-	assert.ok(interaction.replies[0].includes("An error occurred"), "generic error reply");
+	assert.ok(interaction.state.messages[0].includes("An error occurred"), "generic error reply");
 });
 
 test("close: long thread names are truncated to Discord's 100-character limit", async () => {
@@ -147,7 +141,7 @@ test("close: failed rename reverts the closed flag", async () => {
 	await close.execute(interaction, { Listing: { findOne: async () => listing } });
 	assert.strictEqual(listing.closed, false, "listing reopened");
 	assert.ok(
-		interaction.replies.some((r) => r.includes("An error occurred")),
+		interaction.state.messages.some((r) => r.includes("An error occurred")),
 		"error reported",
 	);
 });

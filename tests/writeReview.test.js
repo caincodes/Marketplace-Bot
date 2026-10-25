@@ -1,24 +1,10 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const writeReview = require("../events/operations/writeReview");
+const { createInteraction } = require("./helpers/interaction");
 
 function makeInteraction(overrides = {}) {
-	const state = { followUps: [], edits: [], replies: [], deferred: false, modal: null };
-	const interaction = {
-		state,
-		user: { id: "rater123" },
-		deferUpdate: async () => {
-			state.deferred = true;
-		},
-		showModal: async (modal) => {
-			state.modal = modal;
-		},
-		followUp: async (opts) => state.followUps.push(opts.content),
-		editReply: async (opts) => state.edits.push(opts.content),
-		reply: async (opts) => state.replies.push(opts.content),
-		...overrides,
-	};
-	return interaction;
+	return createInteraction({ user: { id: "rater123" }, ...overrides });
 }
 
 const client = { channels: { fetch: async () => ({ guild: { id: "g1" } }) } };
@@ -62,7 +48,7 @@ test("writeReview: skipRating updates the DM", async () => {
 		Listing: { findByPk: async () => ({ id: 9, threadId: "t1" }) },
 		client,
 	});
-	assert.strictEqual(interaction.state.deferred, true, "deferred");
+	assert.strictEqual(interaction.deferred, true, "deferred");
 	assert.ok(
 		interaction.state.edits.some((e) => e.includes("Rating skipped")),
 		"rating skipped message",
@@ -94,9 +80,6 @@ test("writeReview: skipReview marks review null and updates the DM", async () =>
 
 test("writeReview: skipReview reports a missing rating via follow-up after deferring", async () => {
 	const interaction = makeInteraction({ customId: "skip_review_50_rater123" });
-	interaction.reply = async () => {
-		throw new Error("reply() after deferUpdate() is not allowed");
-	};
 	await writeReview.skipReview(interaction, {
 		Rating: { findByPk: async () => null },
 		client,

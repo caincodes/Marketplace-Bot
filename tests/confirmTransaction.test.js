@@ -1,21 +1,15 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const confirmTransaction = require("../events/operations/confirmTransaction");
+const { createInteraction } = require("./helpers/interaction");
 
 function makeInteraction(overrides = {}) {
-	const state = { followUps: [], edits: [], deferred: false };
-	const interaction = {
-		state,
+	return createInteraction({
+		isButton: () => true,
 		customId: "confirm_transaction_1_initiator1_intended2_confirm",
 		user: { id: "intended2" },
-		deferUpdate: async () => {
-			state.deferred = true;
-		},
-		followUp: async (opts) => state.followUps.push(opts.content),
-		editReply: async (opts) => state.edits.push(opts.content),
 		...overrides,
-	};
-	return interaction;
+	});
 }
 
 function makeClient(sent) {
@@ -51,7 +45,7 @@ test("confirmTransaction: confirm updates records and prompts for ratings", asyn
 	};
 	const interaction = makeInteraction();
 	await confirmTransaction.execute(interaction, models);
-	assert.strictEqual(interaction.state.deferred, true, "deferred");
+	assert.strictEqual(interaction.deferred, true, "deferred");
 	assert.strictEqual(transaction.status, "confirmed", "transaction confirmed");
 	assert.deepStrictEqual(transaction.confirmations, ["intended2"], "confirmation recorded");
 	assert.strictEqual(transaction.initiatorId, "initiator1", "initiator taken from customId");
