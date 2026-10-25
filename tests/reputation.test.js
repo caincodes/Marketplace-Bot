@@ -68,3 +68,19 @@ test("reputation: fatal error returns error message", async () => {
 	const response = await getUserReputation(userId, {});
 	assert.ok(response.includes("Error loading reputation data"), "error message returned");
 });
+
+test("reputation: only confirmed listings are counted", async () => {
+	let listingWhere = null;
+	const models = {
+		Listing: {
+			findAll: async ({ where }) => {
+				listingWhere = where;
+				return [];
+			},
+		},
+		Transaction: { findAll: async () => [] },
+		Rating: { findAll: async () => [] },
+	};
+	await getUserReputation(userId, models);
+	assert.deepStrictEqual(listingWhere, { userId, status: "confirmed" }, "filters to confirmed");
+});
