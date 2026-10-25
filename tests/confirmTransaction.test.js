@@ -34,12 +34,17 @@ test("confirmTransaction: confirm updates records and prompts for ratings", asyn
 		listingId: 9,
 		sellerId: "intended2",
 		buyerId: "buyer-x",
-		update: async function (data) {
-			Object.assign(this, data);
-		},
+		status: "pending",
 	};
 	const models = {
-		Transaction: { findByPk: async () => transaction },
+		Transaction: {
+			findByPk: async () => transaction,
+			update: async (data, { where }) => {
+				if (where.id !== transaction.id || where.status !== transaction.status) return [0];
+				Object.assign(transaction, data);
+				return [1];
+			},
+		},
 		Listing: { findByPk: async () => ({ id: 9, threadId: "thread1" }) },
 		client: makeClient(sent),
 	};
@@ -69,7 +74,7 @@ test("confirmTransaction: deny destroys the transaction", async () => {
 	});
 	await confirmTransaction.execute(interaction, {
 		Transaction: {
-			findByPk: async () => ({ id: 1, listingId: 9 }),
+			findByPk: async () => ({ id: 1, listingId: 9, status: "pending" }),
 			destroy: async ({ where }) => {
 				destroyedWhere = where;
 			},
@@ -77,11 +82,52 @@ test("confirmTransaction: deny destroys the transaction", async () => {
 		Listing: { findByPk: async () => ({ id: 9 }) },
 		client: makeClient([]),
 	});
-	assert.deepStrictEqual(destroyedWhere, { id: "1" }, "transaction destroyed by id");
+	assert.deepStrictEqual(
+		destroyedWhere,
+		{ id: 1, status: "pending" },
+		"pending transaction destroyed by id",
+	);
 	assert.ok(
 		interaction.state.edits.some((e) => e.includes("Transaction cancelled")),
 		"cancellation message shown",
 	);
+});
+
+test("confirmTransaction: already-confirmed transaction is not confirmed again", async () => {
+	const sent = [];
+	let updateCalled = false;
+	const interaction = makeInteraction();
+	await confirmTransaction.execute(interaction, {
+		Transaction: {
+			findByPk: async () => ({ id: 1, listingId: 9, status: "confirmed" }),
+			update: async () => {
+				updateCalled = true;
+				return [1];
+			},
+		},
+		Listing: { findByPk: async () => ({ id: 9, threadId: "thread1" }) },
+		client: makeClient(sent),
+	});
+	assert.strictEqual(updateCalled, false, "no second update");
+	assert.strictEqual(sent.length, 0, "no duplicate announcements or rating prompts");
+	assert.ok(
+		interaction.state.edits.some((e) => e.includes("already been confirmed")),
+		"user told it is already confirmed",
+	);
+});
+
+test("confirmTransaction: concurrent confirm that loses the race sends nothing", async () => {
+	const sent = [];
+	const interaction = makeInteraction();
+	await confirmTransaction.execute(interaction, {
+		Transaction: {
+			findByPk: async () => ({ id: 1, listingId: 9, status: "pending" }),
+			update: async () => [0],
+		},
+		Listing: { findByPk: async () => ({ id: 9, threadId: "thread1" }) },
+		client: makeClient(sent),
+	});
+	assert.strictEqual(sent.length, 0, "no duplicate announcements or rating prompts");
 });
 
 test("confirmTransaction: wrong user cannot confirm", async () => {

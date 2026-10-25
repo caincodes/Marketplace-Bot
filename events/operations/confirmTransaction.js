@@ -27,15 +27,32 @@ module.exports = {
 				return await followUpEphemeral(interaction, "Transaction not found.");
 			}
 
-			if (action === "confirm") {
-				// Immediately confirm the transaction
-				const listing = await Listing.findByPk(transaction.listingId);
-				await transaction.update({
-					status: "confirmed",
-					confirmations: [interaction.user.id],
-					forumPostId: listing?.threadId || transaction.forumPostId,
-					initiatorId: interaction.user.id, // Track who initiated
+			if (transaction.status !== "pending") {
+				return await interaction.editReply({
+					content: "This transaction has already been confirmed.",
+					components: [],
 				});
+			}
+
+			if (action === "confirm") {
+				const listing = await Listing.findByPk(transaction.listingId);
+				// Conditional update so a double-click can't confirm twice and send
+				// duplicate rating prompts.
+				const [updatedCount] = await Transaction.update(
+					{
+						status: "confirmed",
+						confirmations: [interaction.user.id],
+						forumPostId: listing?.threadId || transaction.forumPostId,
+						initiatorId: interaction.user.id, // Track who initiated
+					},
+					{ where: { id: transaction.id, status: "pending" } }
+				);
+				if (updatedCount === 0) {
+					return await interaction.editReply({
+						content: "This transaction has already been confirmed.",
+						components: [],
+					});
+				}
 
 				// Send message to forum post
 				try {
@@ -86,7 +103,7 @@ module.exports = {
 				}
 			} else if (action === "deny") {
 				// Cancel the transaction
-				await Transaction.destroy({ where: { id: transactionId } });
+				await Transaction.destroy({ where: { id: transaction.id, status: "pending" } });
 				await interaction.editReply({
 					content: "❌ Transaction cancelled.",
 					components: [],
