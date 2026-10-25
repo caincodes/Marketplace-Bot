@@ -83,6 +83,13 @@ test("confirmTransaction: trade is announced as a trade, not a purchase", async 
 
 test("confirmTransaction: deny destroys the transaction", async () => {
 	let destroyedWhere = null;
+	const listing = {
+		id: 9,
+		transactionIds: [1, 2],
+		update: async function (data) {
+			Object.assign(this, data);
+		},
+	};
 	const interaction = makeInteraction({
 		customId: "confirm_transaction_1_initiator1_intended2_deny",
 	});
@@ -93,9 +100,10 @@ test("confirmTransaction: deny destroys the transaction", async () => {
 				destroyedWhere = where;
 			},
 		},
-		Listing: { findByPk: async () => ({ id: 9 }) },
+		Listing: { findByPk: async () => listing },
 		client: makeClient([]),
 	});
+	assert.deepStrictEqual(listing.transactionIds, [2], "cancelled id removed from listing");
 	assert.deepStrictEqual(
 		destroyedWhere,
 		{ id: 1, status: "pending" },
