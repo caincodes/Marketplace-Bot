@@ -3,6 +3,7 @@ const token = process.env.BOT_TOKEN;
 const Sequelize = require("sequelize");
 const fs = require("fs");
 const path = require("path");
+const { initModels } = require("./models");
 
 const sequelize = new Sequelize({
 	dialect: "sqlite",
@@ -10,19 +11,7 @@ const sequelize = new Sequelize({
 	logging: false,
 });
 
-// Load models
-const User = require("./models/User")(sequelize);
-const Listing = require("./models/Listing")(sequelize);
-const Transaction = require("./models/Transaction")(sequelize);
-const Rating = require("./models/Rating")(sequelize);
-
-// Define associations
-User.hasMany(Listing, { foreignKey: "userId" });
-Listing.belongsTo(User, { foreignKey: "userId" });
-Listing.hasMany(Transaction, { foreignKey: "listingId" });
-Transaction.belongsTo(Listing, { foreignKey: "listingId" });
-Transaction.hasMany(Rating, { foreignKey: "transactionId" });
-Rating.belongsTo(Transaction, { foreignKey: "transactionId" });
+const { User, Listing, Transaction, Rating } = initModels(sequelize);
 
 const { Client, GatewayIntentBits } = require("discord.js");
 
