@@ -27,10 +27,6 @@ module.exports = (sequelize) => {
 			type: Sequelize.ENUM("pending", "confirmed"),
 			defaultValue: "pending",
 		},
-		ratingIds: {
-			type: Sequelize.JSON,
-			defaultValue: [],
-		},
 		confirmations: {
 			type: Sequelize.JSON,
 			defaultValue: [],

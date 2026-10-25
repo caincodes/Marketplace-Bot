@@ -12,7 +12,6 @@ function makeListing(overrides = {}) {
 		offer: "100g",
 		status: "confirmed",
 		closed: false,
-		transactionIds: [],
 		update: async () => {},
 		...overrides,
 	};
@@ -135,7 +134,6 @@ test("confirm: rejects listings that are still pending", async () => {
 test("confirm: failed DM removes the transaction and tells the user", async (t) => {
 	t.mock.method(console, "error", () => {}); // error path is expected
 	let destroyedWhere = null;
-	let listingUpdated = false;
 	const interaction = makeInteraction({
 		options: {
 			getUser: () => ({
@@ -152,7 +150,7 @@ test("confirm: failed DM removes the transaction and tells the user", async (t) 
 		interaction,
 		baseModels({
 			Listing: {
-				findOne: async () => makeListing({ update: async () => (listingUpdated = true) }),
+				findOne: async () => makeListing(),
 			},
 			Transaction: {
 				create: async (data) => ({ id: 7, ...data }),
@@ -161,7 +159,6 @@ test("confirm: failed DM removes the transaction and tells the user", async (t) 
 		}),
 	);
 	assert.deepStrictEqual(destroyedWhere, { id: 7 }, "orphaned transaction destroyed");
-	assert.strictEqual(listingUpdated, false, "listing not linked to the failed transaction");
 	assert.ok(
 		interaction.state.messages.some((r) => r.includes("Couldn't send a confirmation DM")),
 		"user told the DM failed",

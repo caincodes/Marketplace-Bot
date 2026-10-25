@@ -100,7 +100,7 @@ test("db: concurrent transaction confirms only confirm once", async () => {
 	assert.strictEqual(outcomes.filter((e) => e.includes("already been confirmed")).length, 1);
 });
 
-test("db: cancelling a transaction deletes it and unlinks it from the listing", async () => {
+test("db: cancelling a transaction deletes only that transaction", async () => {
 	const listing = await seedListing();
 	const keep = await models.Transaction.create({
 		listingId: listing.id,
@@ -115,8 +115,6 @@ test("db: cancelling a transaction deletes it and unlinks it from the listing", 
 		buyerId: "buyer",
 		type: "trade",
 	});
-	await listing.update({ transactionIds: [keep.id, cancel.id] });
-
 	const interaction = createInteraction({
 		isButton: () => true,
 		customId: `confirm_transaction_${cancel.id}_buyer_seller_deny`,
@@ -125,8 +123,7 @@ test("db: cancelling a transaction deletes it and unlinks it from the listing", 
 	await confirmTransaction.execute(interaction, { ...models, client: makeClient() });
 
 	assert.strictEqual(await models.Transaction.findByPk(cancel.id), null, "transaction deleted");
-	await listing.reload();
-	assert.deepStrictEqual(listing.transactionIds, [keep.id], "only the cancelled id removed");
+	assert.ok(await models.Transaction.findByPk(keep.id), "other transactions untouched");
 });
 
 test("db: concurrent rating clicks store a single rating", async () => {

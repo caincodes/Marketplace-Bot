@@ -58,15 +58,6 @@ module.exports = {
 				throw error;
 			}
 
-			// Update transaction and listing with new rating ID
-			const currentRatingIds = transaction.ratingIds || [];
-			await transaction.update({ ratingIds: [...currentRatingIds, ratingRecord.id] });
-
-			if (listing) {
-				const currentListingRatingIds = listing.ratingIds || [];
-				await listing.update({ ratingIds: [...currentListingRatingIds, ratingRecord.id] });
-			}
-
 			// Update the message with rating confirmation and review options
 			const forumLink = await getForumLink(transaction, listing, client);
 			const forumLinkText = formatForumLink(forumLink);

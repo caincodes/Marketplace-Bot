@@ -95,14 +95,8 @@ module.exports = {
 					console.error(`Error updating confirming user's DM:`, error);
 				}
 			} else if (action === "deny") {
-				// Cancel the transaction and unlink it from its listing
+				// Cancel the transaction
 				await Transaction.destroy({ where: { id: transaction.id, status: "pending" } });
-				const listing = await Listing.findByPk(transaction.listingId);
-				if (listing) {
-					await listing.update({
-						transactionIds: (listing.transactionIds || []).filter((id) => id !== transaction.id),
-					});
-				}
 				await interaction.editReply({
 					content: "❌ Transaction cancelled.",
 					components: [],

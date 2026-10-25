@@ -129,10 +129,6 @@ module.exports = {
 				);
 			}
 
-			// Add transaction ID to listing
-			const currentTransactionIds = listing.transactionIds || [];
-			await listing.update({ transactionIds: [...currentTransactionIds, transaction.id] });
-
 			await replyEphemeral(interaction, "Transaction confirmation sent.");
 		} catch (error) {
 			console.error("Error initiating transaction:", error);

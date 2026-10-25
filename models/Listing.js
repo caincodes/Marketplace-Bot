@@ -18,14 +18,6 @@ module.exports = (sequelize) => {
 			item: Sequelize.TEXT,
 			offer: Sequelize.TEXT,
 			threadId: Sequelize.STRING,
-			transactionIds: {
-				type: Sequelize.JSON,
-				defaultValue: [],
-			},
-			ratingIds: {
-				type: Sequelize.JSON,
-				defaultValue: [],
-			},
 			status: {
 				type: Sequelize.ENUM("pending", "confirmed", "denied"),
 				defaultValue: "pending",

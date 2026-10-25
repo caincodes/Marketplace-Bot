@@ -20,7 +20,6 @@ test("rateUser: creates rating and offers review options", async () => {
 		sellerId: "rater123",
 		buyerId: "ratee456",
 		status: "confirmed",
-		ratingIds: [],
 		update: async function (data) {
 			Object.assign(this, data);
 		},
@@ -28,7 +27,6 @@ test("rateUser: creates rating and offers review options", async () => {
 	const listing = {
 		id: 9,
 		threadId: "thread1",
-		ratingIds: [],
 		update: async function (data) {
 			Object.assign(this, data);
 		},
@@ -50,8 +48,6 @@ test("rateUser: creates rating and offers review options", async () => {
 	assert.strictEqual(created.raterId, "rater123", "rater recorded");
 	assert.strictEqual(created.rateeId, "ratee456", "ratee derived from transaction");
 	assert.strictEqual(created.rating, "positive", "rating value from customId");
-	assert.deepStrictEqual(transaction.ratingIds, [77], "rating id added to transaction");
-	assert.deepStrictEqual(listing.ratingIds, [77], "rating id added to listing");
 	assert.ok(
 		interaction.state.edits.some((e) => e.includes("Rating submitted")),
 		"review prompt shown",
@@ -64,7 +60,6 @@ function confirmedTransaction(overrides = {}) {
 		sellerId: "rater123",
 		buyerId: "ratee456",
 		status: "confirmed",
-		ratingIds: [],
 		update: async () => {},
 		...overrides,
 	};
