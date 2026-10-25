@@ -92,6 +92,21 @@ test("writeReview: skipReview marks review null and updates the DM", async () =>
 	);
 });
 
+test("writeReview: skipReview reports a missing rating via follow-up after deferring", async () => {
+	const interaction = makeInteraction({ customId: "skip_review_50_rater123" });
+	interaction.reply = async () => {
+		throw new Error("reply() after deferUpdate() is not allowed");
+	};
+	await writeReview.skipReview(interaction, {
+		Rating: { findByPk: async () => null },
+		client,
+	});
+	assert.ok(
+		interaction.state.followUps.some((f) => f.includes("Rating record not found")),
+		"missing rating reported",
+	);
+});
+
 test("writeReview: submitReview saves review text and completes transaction", async () => {
 	let savedReview;
 	const submitRating = {

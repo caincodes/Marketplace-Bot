@@ -117,7 +117,7 @@ module.exports = {
 		try {
 			const ratingRecord = await Rating.findByPk(ratingId);
 			if (!ratingRecord) {
-				return await replyEphemeral(interaction, "Rating record not found.");
+				return await followUpEphemeral(interaction, "Rating record not found.");
 			}
 
 			// Mark review as completed (null means no review written)
