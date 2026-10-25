@@ -16,21 +16,8 @@ function makeThread(name) {
 			// minimal collector stub so collector paths don't crash
 			createMessageComponentCollector: () => ({ on: () => {} }),
 		}),
-		messages: {
-			fetch: async () => new Map([["m1", { author: { id: "u1", username: "poster" } }]]),
-		},
+		fetchStarterMessage: async () => ({ author: { id: "u1", username: "poster" } }),
 	};
-}
-
-// Map.first() shim used by discord.js Collections; the code calls messages.fetch(...).first()
-function withFirst(thread) {
-	const originalFetch = thread.messages.fetch;
-	thread.messages.fetch = async () => {
-		const map = await originalFetch();
-		map.first = () => map.values().next().value;
-		return map;
-	};
-	return thread;
 }
 
 function baseModels(overrides = {}) {
@@ -119,7 +106,7 @@ test("threadUpdate: pending listing with valid new name updates fields and re-pr
 	let pendingUpdated = null;
 	await threadUpdate.execute(
 		{ name: "old" },
-		withFirst(makeThread(OTHER_VALID_NAME)),
+		makeThread(OTHER_VALID_NAME),
 		baseModels({
 			Listing: {
 				findOne: async () => ({
@@ -138,7 +125,7 @@ test("threadUpdate: no existing listing + valid name creates a new listing", asy
 	let createdData = null;
 	await threadUpdate.execute(
 		{ name: "old" },
-		withFirst(makeThread(VALID_NAME)),
+		makeThread(VALID_NAME),
 		baseModels({
 			Listing: {
 				findOne: async () => null,
@@ -152,6 +139,30 @@ test("threadUpdate: no existing listing + valid name creates a new listing", asy
 	assert.ok(createdData, "listing created");
 	assert.strictEqual(createdData.type, "SELL", "created with parsed type");
 	assert.strictEqual(createdData.status, "pending", "created as pending");
+});
+
+test("threadUpdate: new listing is attributed to the thread starter, not the latest message", async () => {
+	let createdData = null;
+	const thread = makeThread(VALID_NAME);
+	thread.messages = {
+		fetch: async () => {
+			throw new Error("latest message must not be used to identify the author");
+		},
+	};
+	await threadUpdate.execute(
+		{ name: "old" },
+		thread,
+		baseModels({
+			Listing: {
+				findOne: async () => null,
+				create: async (data) => {
+					createdData = data;
+					return { id: 1 };
+				},
+			},
+		}),
+	);
+	assert.strictEqual(createdData.userId, "u1", "author taken from starter message");
 });
 
 test("threadUpdate: no existing listing + invalid name does nothing", async () => {

@@ -1,13 +1,15 @@
 const { applyForumTag } = require("./forumTags");
+const WaitStarterMessage = require("./WaitStarterMessage");
 
 /**
- * Fetch the first (starter) message of a thread.
+ * Fetch the first (starter) message of a thread. Uses the starter message
+ * rather than messages.fetch(), which returns the most recent message (often
+ * the bot's own reply).
  * @param {Object} thread - Discord thread
- * @returns {Promise<Object|undefined>} The first message, or undefined
+ * @returns {Promise<Object|null>} The first message, or null
  */
 async function fetchFirstMessage(thread) {
-	const messages = await thread.messages.fetch({ limit: 1 });
-	return messages.first();
+	return WaitStarterMessage(thread);
 }
 
 /**
