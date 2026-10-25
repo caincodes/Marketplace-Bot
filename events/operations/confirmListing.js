@@ -24,7 +24,7 @@ module.exports = {
 		if (interaction.user.id !== listing.userId) {
 			return await followUpEphemeral(
 				interaction,
-				"Only the listing author can respond to this confirmation."
+				"Only the listing author can respond to this confirmation.",
 			);
 		}
 
@@ -46,7 +46,7 @@ module.exports = {
 		// Conditional update so a double-click can't confirm twice
 		const [updatedCount] = await Listing.update(
 			{ status: "confirmed", type },
-			{ where: { id: listing.id, status: "pending" } }
+			{ where: { id: listing.id, status: "pending" } },
 		);
 		if (updatedCount === 0) {
 			return await interaction.editReply({

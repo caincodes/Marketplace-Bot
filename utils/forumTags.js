@@ -25,7 +25,7 @@ async function applyForumTag(thread, tagName) {
 	if (!forumChannel || forumChannel.type !== FORUM_CHANNEL_TYPE) return false;
 
 	const tag = forumChannel.availableTags.find(
-		(t) => t.name.toLowerCase() === tagName.toLowerCase()
+		(t) => t.name.toLowerCase() === tagName.toLowerCase(),
 	);
 	if (!tag) return false;
 

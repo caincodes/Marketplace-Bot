@@ -218,7 +218,11 @@ test("threadUpdate: re-prompting retires the previous prompt's buttons", async (
 	});
 	await threadUpdate.execute({ name: "old" }, thread, models);
 	await threadUpdate.execute({ name: "older" }, thread, models);
-	assert.deepStrictEqual(edited, [{ id: "prompt1", opts: { components: [] } }], "old prompt retired");
+	assert.deepStrictEqual(
+		edited,
+		[{ id: "prompt1", opts: { components: [] } }],
+		"old prompt retired",
+	);
 });
 
 test("threadUpdate: closed listing is not re-prompted after the close rename", async () => {

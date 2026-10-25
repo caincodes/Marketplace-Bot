@@ -10,7 +10,7 @@ function buildConfirmationRow() {
 	return new ActionRowBuilder().addComponents(
 		new ButtonBuilder().setCustomId("confirm").setLabel("Confirm").setStyle(ButtonStyle.Success),
 		new ButtonBuilder().setCustomId("trade").setLabel("Trade").setStyle(ButtonStyle.Primary),
-		new ButtonBuilder().setCustomId("deny").setLabel("Deny").setStyle(ButtonStyle.Danger)
+		new ButtonBuilder().setCustomId("deny").setLabel("Deny").setStyle(ButtonStyle.Danger),
 	);
 }
 
@@ -36,7 +36,7 @@ function buildRatingButtons(transactionId, userId) {
 			.setCustomId(`skip_rating_${transactionId}_${userId}`)
 			.setLabel("Skip")
 			.setStyle(ButtonStyle.Secondary)
-			.setEmoji("⏭️")
+			.setEmoji("⏭️"),
 	);
 }
 

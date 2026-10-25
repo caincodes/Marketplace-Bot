@@ -80,7 +80,7 @@ module.exports = {
 
 			if (parsed.mismatched) {
 				await newThread.send(
-					"⚠️ Your updated thread title seems mismatched or incomplete. Please edit, matching format: `[Region] [H/W] Item [H/W] Offer`"
+					"⚠️ Your updated thread title seems mismatched or incomplete. Please edit, matching format: `[Region] [H/W] Item [H/W] Offer`",
 				);
 				return;
 			}

@@ -7,7 +7,7 @@ module.exports = {
 		.setName("history")
 		.setDescription("View your (or another user's) marketplace history")
 		.addUserOption((option) =>
-			option.setName("user").setDescription("The user to view history for").setRequired(false)
+			option.setName("user").setDescription("The user to view history for").setRequired(false),
 		),
 	async execute(interaction, models) {
 		try {

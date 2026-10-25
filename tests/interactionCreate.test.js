@@ -91,5 +91,8 @@ test("interactionCreate: routes listing confirmation buttons", async () => {
 	const models = makeModels();
 	models.Listing.findOne = async () => null;
 	await interactionCreate.execute(interaction, models);
-	assert.ok(out.edits.some((e) => e.includes("No listing found")), "handled by confirmListing");
+	assert.ok(
+		out.edits.some((e) => e.includes("No listing found")),
+		"handled by confirmListing",
+	);
 });

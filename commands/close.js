@@ -16,14 +16,14 @@ module.exports = {
 				.setRequired(true)
 				.addChoices(
 					{ name: "Sold/Found Item", value: "sold" },
-					{ name: "No Longer Needed", value: "withdrawn" }
-				)
+					{ name: "No Longer Needed", value: "withdrawn" },
+				),
 		),
 	async execute(interaction, { Listing }) {
 		if (!interaction.channel.isThread()) {
 			return await replyEphemeral(
 				interaction,
-				"This command must be run inside a forum post (thread)."
+				"This command must be run inside a forum post (thread).",
 			);
 		}
 

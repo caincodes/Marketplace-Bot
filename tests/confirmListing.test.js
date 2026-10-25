@@ -19,7 +19,13 @@ function makeInteraction(customId, userId = "author1") {
 }
 
 function makeModels(listingOverrides = {}, updateResult = [1]) {
-	const listing = { id: 1, userId: "author1", type: "SELL", status: "pending", ...listingOverrides };
+	const listing = {
+		id: 1,
+		userId: "author1",
+		type: "SELL",
+		status: "pending",
+		...listingOverrides,
+	};
 	const updates = [];
 	return {
 		updates,
@@ -45,7 +51,10 @@ test("confirmListing: confirm marks the listing confirmed and shows reputation",
 		data: { status: "confirmed", type: "SELL" },
 		where: { id: 1, status: "pending" },
 	});
-	assert.ok(interaction.state.edits.some((e) => e.includes("Marketplace History")), "reputation shown");
+	assert.ok(
+		interaction.state.edits.some((e) => e.includes("Marketplace History")),
+		"reputation shown",
+	);
 });
 
 test("confirmListing: trade confirms as a TRADE listing", async () => {

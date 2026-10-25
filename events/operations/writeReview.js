@@ -16,7 +16,7 @@ module.exports = {
 		if (interaction.user.id !== raterId) {
 			return await replyEphemeral(
 				interaction,
-				"You are not authorized to write a review for this transaction."
+				"You are not authorized to write a review for this transaction.",
 			);
 		}
 
@@ -58,7 +58,7 @@ module.exports = {
 		if (interaction.user.id !== raterId) {
 			return await followUpEphemeral(
 				interaction,
-				"You are not authorized to complete this action."
+				"You are not authorized to complete this action.",
 			);
 		}
 
@@ -98,7 +98,7 @@ module.exports = {
 		if (interaction.user.id !== raterId) {
 			return await followUpEphemeral(
 				interaction,
-				"You are not authorized to complete this action."
+				"You are not authorized to complete this action.",
 			);
 		}
 

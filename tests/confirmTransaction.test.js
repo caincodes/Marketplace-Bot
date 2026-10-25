@@ -71,13 +71,23 @@ test("confirmTransaction: confirm updates records and prompts for ratings", asyn
 
 test("confirmTransaction: trade is announced as a trade, not a purchase", async () => {
 	const sent = [];
-	const transaction = { id: 1, listingId: 9, sellerId: "s1", buyerId: "intended2", type: "trade", status: "pending" };
+	const transaction = {
+		id: 1,
+		listingId: 9,
+		sellerId: "s1",
+		buyerId: "intended2",
+		type: "trade",
+		status: "pending",
+	};
 	await confirmTransaction.execute(makeInteraction(), {
 		Transaction: { findByPk: async () => transaction, update: async () => [1] },
 		Listing: { findByPk: async () => ({ id: 9, threadId: "thread1" }) },
 		client: makeClient(sent),
 	});
-	assert.ok(sent.some((m) => m.includes("completed a trade")), "trade announcement posted");
+	assert.ok(
+		sent.some((m) => m.includes("completed a trade")),
+		"trade announcement posted",
+	);
 	assert.ok(!sent.some((m) => m.includes("purchased")), "no purchase wording");
 });
 

@@ -115,7 +115,10 @@ test("confirm: rejects closed listings", async () => {
 		interaction,
 		baseModels({ Listing: { findOne: async () => makeListing({ closed: true }) } }),
 	);
-	assert.ok(interaction.replies.some((r) => r.includes("listing is closed")), "closed rejected");
+	assert.ok(
+		interaction.replies.some((r) => r.includes("listing is closed")),
+		"closed rejected",
+	);
 });
 
 test("confirm: rejects listings that are still pending", async () => {
@@ -148,7 +151,9 @@ test("confirm: failed DM removes the transaction and tells the user", async () =
 	await confirm.execute(
 		interaction,
 		baseModels({
-			Listing: { findOne: async () => makeListing({ update: async () => (listingUpdated = true) }) },
+			Listing: {
+				findOne: async () => makeListing({ update: async () => (listingUpdated = true) }),
+			},
 			Transaction: {
 				create: async (data) => ({ id: 7, ...data }),
 				destroy: async ({ where }) => (destroyedWhere = where),

@@ -17,7 +17,7 @@ module.exports = {
 		if (interaction.user.id !== intendedUserId) {
 			return await followUpEphemeral(
 				interaction,
-				`Only <@${intendedUserId}> can confirm this transaction.`
+				`Only <@${intendedUserId}> can confirm this transaction.`,
 			);
 		}
 
@@ -45,7 +45,7 @@ module.exports = {
 						forumPostId: listing?.threadId || transaction.forumPostId,
 						initiatorId, // The user who ran /confirm (not the one confirming)
 					},
-					{ where: { id: transaction.id, status: "pending" } }
+					{ where: { id: transaction.id, status: "pending" } },
 				);
 				if (updatedCount === 0) {
 					return await interaction.editReply({

@@ -146,5 +146,8 @@ test("close: failed rename reverts the closed flag", async () => {
 	};
 	await close.execute(interaction, { Listing: { findOne: async () => listing } });
 	assert.strictEqual(listing.closed, false, "listing reopened");
-	assert.ok(interaction.replies.some((r) => r.includes("An error occurred")), "error reported");
+	assert.ok(
+		interaction.replies.some((r) => r.includes("An error occurred")),
+		"error reported",
+	);
 });

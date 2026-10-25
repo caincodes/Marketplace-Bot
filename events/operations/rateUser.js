@@ -20,7 +20,7 @@ module.exports = {
 		if (interaction.user.id !== raterId) {
 			return await followUpEphemeral(
 				interaction,
-				"You are not authorized to rate for this transaction."
+				"You are not authorized to rate for this transaction.",
 			);
 		}
 
@@ -80,7 +80,7 @@ module.exports = {
 					.setCustomId(`skip_review_${ratingRecord.id}_${raterId}`)
 					.setLabel("Skip Review")
 					.setStyle(ButtonStyle.Secondary)
-					.setEmoji("⏭️")
+					.setEmoji("⏭️"),
 			);
 
 			await interaction.editReply({

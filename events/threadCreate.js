@@ -17,7 +17,7 @@ module.exports = {
 
 		if (!User || !Listing) {
 			console.warn(
-				"Warning: Database models not provided to threadCreate event. Listings will not be created."
+				"Warning: Database models not provided to threadCreate event. Listings will not be created.",
 			);
 			return;
 		}
@@ -42,7 +42,7 @@ module.exports = {
 
 		if (parsed.mismatched) {
 			await thread.send(
-				"⚠️ Your thread title seems mismatched or incomplete. Please edit, matching format: `[Region] [H/W] Item [H/W] Offer`"
+				"⚠️ Your thread title seems mismatched or incomplete. Please edit, matching format: `[Region] [H/W] Item [H/W] Offer`",
 			);
 			return;
 		}

@@ -6,7 +6,7 @@ module.exports = {
 		.setName("confirm")
 		.setDescription("Confirm a marketplace transaction (use inside your forum post)")
 		.addUserOption((option) =>
-			option.setName("user").setDescription("The other user in the transaction").setRequired(true)
+			option.setName("user").setDescription("The other user in the transaction").setRequired(true),
 		)
 		.addStringOption((option) =>
 			option
@@ -16,14 +16,14 @@ module.exports = {
 				.addChoices(
 					{ name: "Purchase / Sale", value: "purchase" },
 					{ name: "Trade", value: "trade" },
-					{ name: "Trade + Money", value: "money+trade" }
-				)
+					{ name: "Trade + Money", value: "money+trade" },
+				),
 		),
 	async execute(interaction, { Listing, Transaction }) {
 		if (!interaction.channel.isThread()) {
 			return await replyEphemeral(
 				interaction,
-				"This command must be run inside a forum post (thread)."
+				"This command must be run inside a forum post (thread).",
 			);
 		}
 
@@ -69,7 +69,7 @@ module.exports = {
 				if (sellerId !== listing.userId) {
 					return await replyEphemeral(
 						interaction,
-						"The specified user is not the seller of this listing."
+						"The specified user is not the seller of this listing.",
 					);
 				}
 				recipient = otherUser; // Send confirmation to seller
@@ -105,16 +105,16 @@ module.exports = {
 						new ActionRowBuilder().addComponents(
 							new ButtonBuilder()
 								.setCustomId(
-									`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_confirm`
+									`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_confirm`,
 								)
 								.setLabel("Confirm Transaction")
 								.setStyle(ButtonStyle.Success),
 							new ButtonBuilder()
 								.setCustomId(
-									`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_deny`
+									`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_deny`,
 								)
 								.setLabel("Cancel")
-								.setStyle(ButtonStyle.Danger)
+								.setStyle(ButtonStyle.Danger),
 						),
 					],
 				});
@@ -125,7 +125,7 @@ module.exports = {
 				await Transaction.destroy({ where: { id: transaction.id } });
 				return await replyEphemeral(
 					interaction,
-					`Couldn't send a confirmation DM to <@${recipient.id}>. They may have DMs disabled.`
+					`Couldn't send a confirmation DM to <@${recipient.id}>. They may have DMs disabled.`,
 				);
 			}
 
