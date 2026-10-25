@@ -54,52 +54,45 @@ module.exports = {
 					});
 				}
 
-				// Send message to forum post
+				// Announce the completed transaction in the forum post
 				try {
-					const listing = await Listing.findByPk(transaction.listingId);
 					if (listing?.threadId) {
 						const channel = await client.channels.fetch(listing.threadId);
 						if (channel) {
-							await channel.send({
-								content: `🎉 <@${transaction.buyerId}> purchased an item from <@${transaction.sellerId}>!`,
-							});
+							const content =
+								transaction.type === "purchase"
+									? `🎉 <@${transaction.buyerId}> purchased an item from <@${transaction.sellerId}>!`
+									: `🤝 <@${transaction.sellerId}> and <@${transaction.buyerId}> completed a trade!`;
+							await channel.send({ content });
 						}
 					}
 				} catch (error) {
-					console.error("Error sending purchase message to forum post:", error);
+					console.error("Error sending transaction message to forum post:", error);
 				}
 
-				// Send rating prompt to the other user (non-initiator)
+				const forumLinkText = formatForumLink(await getForumLink(transaction, listing, client));
+
+				// Send rating prompt to the initiator (the other party) as a new DM
 				const otherUserId =
 					interaction.user.id === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
 				try {
 					const otherUser = await client.users.fetch(otherUserId);
-					const forumLink = await getForumLink(transaction, listing, client);
-					const forumLinkText = formatForumLink(forumLink);
-
-					const ratingMessage = `✅ **Transaction confirmed with <@${interaction.user.id}>!**\n${forumLinkText}\nHow was your experience with <@${interaction.user.id}>?`;
-
-					// Send NEW DM to the non-initiator with rating buttons
 					await otherUser.send({
-						content: ratingMessage,
+						content: `✅ **Transaction confirmed with <@${interaction.user.id}>!**\n${forumLinkText}\nHow was your experience with <@${interaction.user.id}>?`,
 						components: [buildRatingButtons(transaction.id, otherUserId)],
 					});
 				} catch (error) {
 					console.error(`Error sending rating prompt to ${otherUserId}:`, error);
 				}
 
-				// For initiator: update their DM with rating prompt
+				// For the confirming user: turn their confirmation DM into a rating prompt
 				try {
-					const forumLink = await getForumLink(transaction, listing, client);
-					const forumLinkText = formatForumLink(forumLink);
-					const ratingMessage = `✅ **Transaction confirmed with <@${otherUserId}>!**\n${forumLinkText}\nHow was your experience with <@${otherUserId}>?`;
-
 					await interaction.editReply({
-						content: ratingMessage,
+						content: `✅ **Transaction confirmed with <@${otherUserId}>!**\n${forumLinkText}\nHow was your experience with <@${otherUserId}>?`,
 						components: [buildRatingButtons(transaction.id, interaction.user.id)],
 					});
 				} catch (error) {
-					console.error(`Error updating initiator's DM:`, error);
+					console.error(`Error updating confirming user's DM:`, error);
 				}
 			} else if (action === "deny") {
 				// Cancel the transaction
