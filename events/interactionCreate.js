@@ -16,11 +16,9 @@ module.exports = {
 					const rateHandler = require("./operations/rateUser");
 					await rateHandler.execute(interaction, models);
 				} else if (interaction.customId.startsWith("skip_rating_")) {
-					console.log(`[Button] Routing to skipRating`);
 					const reviewHandler = require("./operations/writeReview");
 					await reviewHandler.skipRating(interaction, models);
 				} else if (interaction.customId.startsWith("write_review_")) {
-					console.log(`[Button] Routing to writeReview execute`);
 					const reviewHandler = require("./operations/writeReview");
 					await reviewHandler.execute(interaction, models);
 				} else if (interaction.customId.startsWith("skip_review_")) {
