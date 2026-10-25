@@ -3,7 +3,9 @@
 	"version": "1.0.0",
 	"main": "index.js",
 	"scripts": {
-		"test": "node --test"
+		"test": "node --test",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
 	},
 	"keywords": [],
 	"author": "",
@@ -14,5 +16,11 @@
 		"dotenv": "^17.2.3",
 		"sequelize": "^6.37.8",
 		"sqlite3": "^5.1.7"
+	},
+	"devDependencies": {
+		"prettier": "^3.9.10"
+	},
+	"engines": {
+		"node": ">=18"
 	}
 }
