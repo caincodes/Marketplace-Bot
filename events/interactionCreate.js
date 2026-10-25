@@ -12,9 +12,6 @@ module.exports = {
 				} else if (interaction.customId.startsWith("confirm_transaction_")) {
 					const confirmHandler = require("./operations/confirmTransaction");
 					await confirmHandler.execute(interaction, models);
-				} else if (interaction.customId.startsWith("close_listing_")) {
-					const closeHandler = require("./operations/closeListing");
-					await closeHandler.execute(interaction, models);
 				} else if (interaction.customId.startsWith("rate_user_")) {
 					const rateHandler = require("./operations/rateUser");
 					await rateHandler.execute(interaction, models);
