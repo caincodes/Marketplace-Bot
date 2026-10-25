@@ -155,3 +155,28 @@ test("writeReview: skipReview errors are reported without overwriting the DM", a
 		"error sent as follow-up",
 	);
 });
+
+test("writeReview: skipReview reports a missing transaction instead of going silent", async () => {
+	const interaction = makeInteraction({ customId: "skip_review_50_rater123" });
+	await writeReview.skipReview(interaction, {
+		Rating: { findByPk: async () => ({ id: 50, transactionId: 1, update: async () => {} }) },
+		Transaction: { findByPk: async () => null },
+		Listing: { findByPk: async () => null },
+		client,
+	});
+	assert.deepStrictEqual(interaction.state.followUps, ["Transaction not found."]);
+});
+
+test("writeReview: submitReview reports a missing transaction instead of going silent", async () => {
+	const interaction = makeInteraction({
+		customId: "review_modal_50_rater123",
+		fields: { getTextInputValue: () => "ok" },
+	});
+	await writeReview.submitReview(interaction, {
+		Rating: { findByPk: async () => ({ id: 50, transactionId: 1, update: async () => {} }) },
+		Transaction: { findByPk: async () => null },
+		Listing: { findByPk: async () => null },
+		client,
+	});
+	assert.deepStrictEqual(interaction.state.followUps, ["Transaction not found."]);
+});

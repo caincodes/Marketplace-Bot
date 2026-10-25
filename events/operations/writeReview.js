@@ -116,7 +116,9 @@ module.exports = {
 				Transaction,
 				Listing,
 			});
-			if (!transactionData) return;
+			if (!transactionData) {
+				return await followUpEphemeral(interaction, "Transaction not found.");
+			}
 
 			const { transaction, listing } = transactionData;
 			const forumLink = await getForumLink(transaction, listing, client);
@@ -176,7 +178,9 @@ module.exports = {
 				Transaction,
 				Listing,
 			});
-			if (!transactionData) return;
+			if (!transactionData) {
+				return await followUpEphemeral(interaction, "Transaction not found.");
+			}
 
 			const { transaction, listing } = transactionData;
 			const forumLink = await getForumLink(transaction, listing, client);
