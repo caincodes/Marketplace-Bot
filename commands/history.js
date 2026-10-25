@@ -1,4 +1,3 @@
-process.env.ORT_LOG_SEVERITY_LEVEL = "3"; // suppress ONNXRuntime unused initializer warnings
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const { getUserReputation } = require("../utils/reputation");
 const { EPHEMERAL } = require("../utils/replies");
