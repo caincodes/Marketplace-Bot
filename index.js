@@ -1,9 +1,8 @@
 require("dotenv").config({ quiet: true });
 const token = process.env.BOT_TOKEN;
 const Sequelize = require("sequelize");
-const fs = require("fs");
-const path = require("path");
 const { initModels } = require("./models");
+const { registerEvents } = require("./utils/events");
 
 const sequelize = new Sequelize({
 	dialect: "sqlite",
@@ -23,26 +22,7 @@ const client = new Client({
 	],
 });
 
-// Load events
-const eventsPath = path.join(__dirname, "events");
-const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
-
-const models = { User, Listing, Transaction, Rating, client };
-
-for (const file of eventFiles) {
-	const event = require(path.join(eventsPath, file));
-	// Event handlers are async; EventEmitter ignores the returned promise, so a
-	// rejection would otherwise surface as an unhandled rejection.
-	const handler = (...args) =>
-		Promise.resolve()
-			.then(() => event.execute(...args, models))
-			.catch((err) => console.error(`[Error] Unhandled error in ${event.name}:`, err));
-	if (event.once) {
-		client.once(event.name, handler);
-	} else {
-		client.on(event.name, handler);
-	}
-}
+registerEvents(client, { User, Listing, Transaction, Rating, client });
 
 // Last line of defense: log stray rejections (e.g. a fire-and-forget send to a
 // deleted thread) instead of letting Node terminate the process.
