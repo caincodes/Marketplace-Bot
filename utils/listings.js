@@ -1,5 +1,5 @@
 const { applyForumTag } = require("./forumTags");
-const WaitStarterMessage = require("./WaitStarterMessage");
+const { waitForStarterMessage } = require("./WaitStarterMessage");
 
 /**
  * Fetch the first (starter) message of a thread. Uses the starter message
@@ -9,7 +9,7 @@ const WaitStarterMessage = require("./WaitStarterMessage");
  * @returns {Promise<Object|null>} The first message, or null
  */
 async function fetchFirstMessage(thread) {
-	return WaitStarterMessage(thread);
+	return waitForStarterMessage(thread);
 }
 
 /**

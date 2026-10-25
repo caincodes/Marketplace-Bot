@@ -1,8 +1,7 @@
 const parseThreadName = require("../utils/parseThreadName");
-const WaitStarterMessage = require("../utils/WaitStarterMessage");
 const { getUserReputation } = require("../utils/reputation");
 const { updateForumTag } = require("../utils/forumTags");
-const { createPendingListing } = require("../utils/listings");
+const { createPendingListing, fetchFirstMessage } = require("../utils/listings");
 const { buildConfirmationRow, createAuthorFilter } = require("../utils/components");
 const { replyEphemeral } = require("../utils/replies");
 
@@ -22,11 +21,14 @@ module.exports = {
 		// Wait for the first message in the thread
 		let firstMessage;
 		try {
-			do {
-				firstMessage = await WaitStarterMessage(thread);
-			} while (!firstMessage);
+			firstMessage = await fetchFirstMessage(thread);
 		} catch (err) {
 			console.error("Error fetching first message:", err);
+			return;
+		}
+
+		if (!firstMessage) {
+			console.warn(`[threadCreate] Starter message never became available for ${thread.id}`);
 			return;
 		}
 
