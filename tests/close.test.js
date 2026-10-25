@@ -23,6 +23,12 @@ function makeInteraction(overrides = {}) {
 		reply: async (opts) => {
 			replies.push(opts.content);
 		},
+		deferReply: async () => {
+			interaction.deferred = true;
+		},
+		editReply: async (opts) => {
+			replies.push(opts.content);
+		},
 		...overrides,
 	};
 	return interaction;
@@ -112,4 +118,33 @@ test("close: database error handled", async () => {
 		client: {},
 	});
 	assert.ok(interaction.replies[0].includes("An error occurred"), "generic error reply");
+});
+
+test("close: long thread names are truncated to Discord's 100-character limit", async () => {
+	const listing = makeListing();
+	const interaction = makeInteraction();
+	interaction.channel.name = `[EU] [H] ${"x".repeat(95)} [W] Offer`;
+	await close.execute(interaction, { Listing: { findOne: async () => listing } });
+	assert.strictEqual(interaction.channel.name.length, 100, "name truncated to 100");
+	assert.ok(interaction.channel.name.startsWith("[SOLD]"), "prefix kept");
+});
+
+test("close: listing is marked closed before the thread is renamed", async () => {
+	const listing = makeListing();
+	const interaction = makeInteraction();
+	let closedAtRename = null;
+	interaction.channel.setName = async () => (closedAtRename = listing.closed);
+	await close.execute(interaction, { Listing: { findOne: async () => listing } });
+	assert.strictEqual(closedAtRename, true, "closed before rename");
+});
+
+test("close: failed rename reverts the closed flag", async () => {
+	const listing = makeListing();
+	const interaction = makeInteraction();
+	interaction.channel.setName = async () => {
+		throw new Error("Missing permissions");
+	};
+	await close.execute(interaction, { Listing: { findOne: async () => listing } });
+	assert.strictEqual(listing.closed, false, "listing reopened");
+	assert.ok(interaction.replies.some((r) => r.includes("An error occurred")), "error reported");
 });
