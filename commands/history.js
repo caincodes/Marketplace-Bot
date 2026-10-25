@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("@discordjs/builders");
+const { SlashCommandBuilder } = require("discord.js");
 const { getUserReputation } = require("../utils/reputation");
 const { EPHEMERAL } = require("../utils/replies");
 

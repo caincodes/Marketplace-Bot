@@ -1,5 +1,3 @@
-const { REST } = require("@discordjs/rest");
-const { Routes } = require("discord-api-types/v9");
 const fs = require("fs");
 const path = require("path");
 
@@ -35,10 +33,8 @@ module.exports = {
 			commands.push(commandData);
 		}
 
-		const rest = new REST({ version: "9" }).setToken(process.env.BOT_TOKEN);
-
 		try {
-			await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+			await client.application.commands.set(commands);
 			console.log("Successfully reloaded application (/) commands.");
 		} catch (error) {
 			console.error(error);
