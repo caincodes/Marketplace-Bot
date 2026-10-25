@@ -1,11 +1,4 @@
-const {
-	ActionRowBuilder,
-	ButtonBuilder,
-	ButtonStyle,
-	ModalBuilder,
-	TextInputBuilder,
-	TextInputStyle,
-} = require("discord.js");
+const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const {
 	getForumLink,
 	fetchTransactionAndListing,
@@ -13,14 +6,9 @@ const {
 } = require("../../utils/forumLink");
 const { replyEphemeral, followUpEphemeral } = require("../../utils/replies");
 
-// Helper to get rating emoji
-function getRatingEmoji(rating) {
-	return rating === "positive" ? "👍" : "👎";
-}
-
 module.exports = {
 	name: "writeReview",
-	async execute(interaction, { User, Listing, Transaction, Rating, client }) {
+	async execute(interaction, { Rating }) {
 		const parts = interaction.customId.split("_");
 		const ratingId = parts[2];
 		const raterId = parts[3];
@@ -60,7 +48,7 @@ module.exports = {
 	},
 
 	// Handle the skip rating action
-	async skipRating(interaction, { User, Listing, Transaction, Rating, client }) {
+	async skipRating(interaction, { Listing, Transaction, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
@@ -100,7 +88,7 @@ module.exports = {
 	},
 
 	// Handle the skip review action
-	async skipReview(interaction, { User, Listing, Transaction, Rating, client }) {
+	async skipReview(interaction, { Listing, Transaction, Rating, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
@@ -147,7 +135,7 @@ module.exports = {
 	},
 
 	// Handle the modal submission
-	async submitReview(interaction, { User, Listing, Transaction, Rating, client }) {
+	async submitReview(interaction, { Listing, Transaction, Rating, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");
@@ -170,7 +158,6 @@ module.exports = {
 			await ratingRecord.update({ review });
 
 			await this.checkTransactionCompletion(interaction, ratingRecord.transactionId, client, {
-				User,
 				Listing,
 				Transaction,
 				Rating,

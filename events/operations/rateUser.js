@@ -9,7 +9,7 @@ const { followUpEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "rateUser",
-	async execute(interaction, { User, Listing, Transaction, Rating, client }) {
+	async execute(interaction, { Listing, Transaction, Rating, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 		const parts = interaction.customId.split("_");

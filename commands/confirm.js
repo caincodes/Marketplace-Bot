@@ -19,7 +19,7 @@ module.exports = {
 					{ name: "Trade + Money", value: "money+trade" }
 				)
 		),
-	async execute(interaction, { Listing, Transaction, client }) {
+	async execute(interaction, { Listing, Transaction }) {
 		if (!interaction.channel.isThread()) {
 			return await replyEphemeral(
 				interaction,

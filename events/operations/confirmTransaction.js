@@ -4,7 +4,7 @@ const { followUpEphemeral } = require("../../utils/replies");
 
 module.exports = {
 	name: "confirmTransaction",
-	async execute(interaction, { User, Listing, Transaction, Rating, client }) {
+	async execute(interaction, { Listing, Transaction, client }) {
 		// Defer the interaction immediately to avoid timeout
 		await interaction.deferUpdate();
 
