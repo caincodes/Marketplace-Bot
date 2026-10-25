@@ -27,5 +27,8 @@ module.exports = (sequelize) => {
 			type: Sequelize.TEXT,
 			allowNull: true,
 		},
+	}, {
+		// One rating per user per transaction
+		indexes: [{ unique: true, fields: ["transactionId", "raterId"] }],
 	});
 };

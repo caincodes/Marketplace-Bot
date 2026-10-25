@@ -1,5 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
+const { UniqueConstraintError } = require("sequelize");
 const rateUser = require("../events/operations/rateUser");
 
 function makeInteraction(overrides = {}) {
@@ -24,6 +25,7 @@ test("rateUser: creates rating and offers review options", async () => {
 		id: 1,
 		sellerId: "rater123",
 		buyerId: "ratee456",
+		status: "confirmed",
 		ratingIds: [],
 		update: async function (data) {
 			Object.assign(this, data);
@@ -60,6 +62,67 @@ test("rateUser: creates rating and offers review options", async () => {
 		interaction.state.edits.some((e) => e.includes("Rating submitted")),
 		"review prompt shown",
 	);
+});
+
+function confirmedTransaction(overrides = {}) {
+	return {
+		id: 1,
+		sellerId: "rater123",
+		buyerId: "ratee456",
+		status: "confirmed",
+		ratingIds: [],
+		update: async () => {},
+		...overrides,
+	};
+}
+
+test("rateUser: second rating by the same user is rejected", async () => {
+	const interaction = makeInteraction();
+	await rateUser.execute(interaction, {
+		Transaction: { findByPk: async () => confirmedTransaction() },
+		Listing: { findByPk: async () => null },
+		Rating: {
+			create: async () => {
+				throw new UniqueConstraintError({});
+			},
+		},
+		client: {},
+	});
+	assert.ok(
+		interaction.state.followUps.some((f) => f.includes("already rated")),
+		"duplicate rating rejected",
+	);
+	assert.strictEqual(interaction.state.edits.length, 0, "no review prompt shown");
+});
+
+test("rateUser: unconfirmed transaction cannot be rated", async () => {
+	let created = false;
+	const interaction = makeInteraction();
+	await rateUser.execute(interaction, {
+		Transaction: { findByPk: async () => confirmedTransaction({ status: "pending" }) },
+		Listing: { findByPk: async () => null },
+		Rating: { create: async () => (created = true) },
+		client: {},
+	});
+	assert.strictEqual(created, false, "no rating created");
+	assert.ok(
+		interaction.state.followUps.some((f) => f.includes("can't be rated")),
+		"user told it can't be rated",
+	);
+});
+
+test("rateUser: non-party cannot rate", async () => {
+	let created = false;
+	const interaction = makeInteraction();
+	await rateUser.execute(interaction, {
+		Transaction: {
+			findByPk: async () => confirmedTransaction({ sellerId: "a", buyerId: "b" }),
+		},
+		Listing: { findByPk: async () => null },
+		Rating: { create: async () => (created = true) },
+		client: {},
+	});
+	assert.strictEqual(created, false, "no rating created");
 });
 
 test("rateUser: unauthorized rater rejected", async () => {

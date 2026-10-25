@@ -1,4 +1,5 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { UniqueConstraintError } = require("sequelize");
 const {
 	getForumLink,
 	fetchTransactionAndListing,
@@ -33,23 +34,38 @@ module.exports = {
 			}
 
 			const { transaction, listing } = transactionData;
+			const isParty = raterId === transaction.sellerId || raterId === transaction.buyerId;
+			if (transaction.status !== "confirmed" || !isParty) {
+				return await followUpEphemeral(interaction, "This transaction can't be rated.");
+			}
 			const rateeId = raterId === transaction.sellerId ? transaction.buyerId : transaction.sellerId;
 
-			// Create rating record
-			const ratingRecord = await Rating.create({
-				transactionId,
-				raterId,
-				rateeId,
-				rating: ratingValue,
-				review: null,
-			});
+			// Create rating record; the unique (transactionId, raterId) index rejects
+			// a second rating from the same user, e.g. on a double-click.
+			let ratingRecord;
+			try {
+				ratingRecord = await Rating.create({
+					transactionId,
+					raterId,
+					rateeId,
+					rating: ratingValue,
+					review: null,
+				});
+			} catch (error) {
+				if (error instanceof UniqueConstraintError) {
+					return await followUpEphemeral(interaction, "You have already rated this transaction.");
+				}
+				throw error;
+			}
 
 			// Update transaction and listing with new rating ID
 			const currentRatingIds = transaction.ratingIds || [];
 			await transaction.update({ ratingIds: [...currentRatingIds, ratingRecord.id] });
 
-			const currentListingRatingIds = listing.ratingIds || [];
-			await listing.update({ ratingIds: [...currentListingRatingIds, ratingRecord.id] });
+			if (listing) {
+				const currentListingRatingIds = listing.ratingIds || [];
+				await listing.update({ ratingIds: [...currentListingRatingIds, ratingRecord.id] });
+			}
 
 			// Update the message with rating confirmation and review options
 			const forumLink = await getForumLink(transaction, listing, client);
