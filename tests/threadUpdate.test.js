@@ -220,3 +220,61 @@ test("threadUpdate: re-prompting retires the previous prompt's buttons", async (
 	await threadUpdate.execute({ name: "older" }, thread, models);
 	assert.deepStrictEqual(edited, [{ id: "prompt1", opts: { components: [] } }], "old prompt retired");
 });
+
+test("threadUpdate: closed listing is not re-prompted after the close rename", async () => {
+	let sent = false;
+	let updated = false;
+	const thread = makeThread(`[SOLD] ${VALID_NAME}`);
+	thread.send = async () => (sent = true);
+	await threadUpdate.execute(
+		{ name: VALID_NAME },
+		thread,
+		baseModels({
+			Listing: {
+				findOne: async () => ({
+					status: "pending",
+					closed: true,
+					update: async () => (updated = true),
+				}),
+			},
+		}),
+	);
+	assert.strictEqual(sent, false, "no prompt sent");
+	assert.strictEqual(updated, false, "closed listing untouched");
+});
+
+test("threadUpdate: confirmed TRADE listing keeps its type on rename", async () => {
+	let updatedData = null;
+	await threadUpdate.execute(
+		{ name: "old" },
+		makeThread(VALID_NAME),
+		baseModels({
+			Listing: {
+				findOne: async () => ({
+					status: "confirmed",
+					type: "TRADE",
+					update: async (data) => (updatedData = data),
+				}),
+			},
+		}),
+	);
+	assert.strictEqual(updatedData.type, "TRADE", "trade type preserved");
+	assert.strictEqual(updatedData.item, "Test Item", "other fields still updated");
+});
+
+test("threadUpdate: confirmed listing type change updates the forum tag", async () => {
+	let appliedTags = null;
+	const thread = makeThread(OTHER_VALID_NAME);
+	thread.parent.availableTags.push({ id: "tag-buy", name: "want to buy" });
+	thread.setAppliedTags = async (tags) => (appliedTags = tags);
+	await threadUpdate.execute(
+		{ name: "old" },
+		thread,
+		baseModels({
+			Listing: {
+				findOne: async () => ({ status: "confirmed", type: "SELL", update: async () => {} }),
+			},
+		}),
+	);
+	assert.deepStrictEqual(appliedTags, ["tag-buy"], "tag switched to want to buy");
+});

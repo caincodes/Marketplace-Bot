@@ -6,6 +6,7 @@ const {
 	buildPromptText,
 	sendListingPrompt,
 } = require("../utils/listings");
+const { updateForumTag } = require("../utils/forumTags");
 
 module.exports = {
 	name: "threadUpdate",
@@ -54,14 +55,25 @@ module.exports = {
 				return;
 			}
 
+			// Closing a listing renames its thread; there is nothing left to confirm
+			if (existingListing.closed) {
+				return;
+			}
+
 			if (existingListing.status === "confirmed") {
 				if (!parsed.mismatched) {
+					// A trade title parses as SELL/BUY, so keep a confirmed trade a trade
+					const type = existingListing.type === "TRADE" ? "TRADE" : parsed.type;
+					const typeChanged = type !== existingListing.type;
 					await existingListing.update({
 						region: parsed.region,
-						type: parsed.type,
+						type,
 						item: parsed.item,
 						offer: parsed.offer,
 					});
+					if (typeChanged) {
+						await updateForumTag(newThread, type);
+					}
 				}
 				return;
 			}
