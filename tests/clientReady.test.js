@@ -19,7 +19,8 @@ function makeClient({ shouldThrow = false } = {}) {
 	};
 }
 
-test("clientReady: registers commands once on ready", async () => {
+test("clientReady: registers commands once on ready", async (t) => {
+	t.mock.method(console, "log", () => {});
 	const client = makeClient();
 	await clientReady.execute(client, {});
 	assert.strictEqual(client.registered.length, 1, "commands registered exactly once");

@@ -139,7 +139,8 @@ test("writeReview: submitReview rejects unauthorized user", async () => {
 	);
 });
 
-test("writeReview: skipReview errors are reported without overwriting the DM", async () => {
+test("writeReview: skipReview errors are reported without overwriting the DM", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const interaction = makeInteraction({ customId: "skip_review_50_rater123" });
 	await writeReview.skipReview(interaction, {
 		Rating: {

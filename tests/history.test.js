@@ -58,7 +58,8 @@ test("history: shows zero listings for a user with none", async () => {
 	);
 });
 
-test("history: handles errors gracefully", async () => {
+test("history: handles errors gracefully", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const interaction = makeInteraction({
 		options: {
 			getUser: () => {

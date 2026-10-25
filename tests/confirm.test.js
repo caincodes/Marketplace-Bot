@@ -89,7 +89,8 @@ test("confirm: rejects when the wrong seller is specified", async () => {
 	);
 });
 
-test("confirm: database error handled gracefully", async () => {
+test("confirm: database error handled gracefully", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const interaction = makeInteraction();
 	await confirm.execute(
 		interaction,
@@ -131,7 +132,8 @@ test("confirm: rejects listings that are still pending", async () => {
 	);
 });
 
-test("confirm: failed DM removes the transaction and tells the user", async () => {
+test("confirm: failed DM removes the transaction and tells the user", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	let destroyedWhere = null;
 	let listingUpdated = false;
 	const interaction = makeInteraction({

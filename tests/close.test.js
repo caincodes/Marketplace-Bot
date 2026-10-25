@@ -101,7 +101,8 @@ test("close: already-closed listing handled", async () => {
 	assert.ok(interaction.state.messages[0].includes("already closed"), "already closed error");
 });
 
-test("close: database error handled", async () => {
+test("close: database error handled", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const interaction = makeInteraction();
 	await close.execute(interaction, {
 		Listing: {
@@ -132,7 +133,8 @@ test("close: listing is marked closed before the thread is renamed", async () =>
 	assert.strictEqual(closedAtRename, true, "closed before rename");
 });
 
-test("close: failed rename reverts the closed flag", async () => {
+test("close: failed rename reverts the closed flag", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const listing = makeListing();
 	const interaction = makeInteraction();
 	interaction.channel.setName = async () => {

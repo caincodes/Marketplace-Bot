@@ -182,7 +182,8 @@ test("confirmTransaction: transaction not found", async () => {
 	);
 });
 
-test("confirmTransaction: database error handled", async () => {
+test("confirmTransaction: database error handled", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const interaction = makeInteraction();
 	await confirmTransaction.execute(interaction, {
 		Transaction: {

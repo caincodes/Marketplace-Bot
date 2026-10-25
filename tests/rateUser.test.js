@@ -147,7 +147,8 @@ test("rateUser: transaction not found", async () => {
 	);
 });
 
-test("rateUser: database error handled", async () => {
+test("rateUser: database error handled", async (t) => {
+	t.mock.method(console, "error", () => {}); // error path is expected
 	const interaction = makeInteraction();
 	await rateUser.execute(interaction, {
 		Transaction: {
