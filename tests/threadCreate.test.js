@@ -49,13 +49,13 @@ function makeThread(name = VALID_NAME) {
 
 test("threadCreate: valid thread name creates a listing", async () => {
 	const models = makeModels();
-	await threadCreate.execute(makeThread(), models);
+	await threadCreate.execute(makeThread(), true, models);
 	assert.strictEqual(models.Listing.created, 1, "listing created for valid name");
 });
 
 test("threadCreate: invalid thread name does not create a listing", async () => {
 	const models = makeModels();
-	await threadCreate.execute(makeThread("Invalid thread name"), models);
+	await threadCreate.execute(makeThread("Invalid thread name"), true, models);
 	assert.strictEqual(models.Listing.created, 0, "no listing for unparsable name");
 });
 
@@ -67,7 +67,7 @@ test("threadCreate: mismatched thread name warns and creates no listing", async 
 		sends.push(typeof m === "string" ? m : m.content);
 		return { createMessageComponentCollector: () => ({ on: () => {} }) };
 	};
-	await threadCreate.execute(thread, models);
+	await threadCreate.execute(thread, true, models);
 	assert.strictEqual(models.Listing.created, 0, "no listing for mismatched name");
 	assert.ok(
 		sends.some((s) => s.includes("mismatched or incomplete")),
@@ -82,7 +82,7 @@ test("threadCreate: missing models warns and recovers", async () => {
 		if (args.join(" ").includes("Database models not provided")) warned = true;
 	};
 	try {
-		await assert.doesNotReject(threadCreate.execute(makeThread(), {}));
+		await assert.doesNotReject(threadCreate.execute(makeThread(), true, {}));
 	} finally {
 		console.warn = originalWarn;
 	}
@@ -94,7 +94,7 @@ test("threadCreate: WaitStarterMessage error is handled gracefully", async () =>
 	thread.fetchStarterMessage = async () => {
 		throw new Error("Failed to fetch message");
 	};
-	await assert.doesNotReject(threadCreate.execute(thread, makeModels()));
+	await assert.doesNotReject(threadCreate.execute(thread, true, makeModels()));
 });
 
 test("threadCreate: database error on listing creation is handled", async () => {
@@ -106,5 +106,5 @@ test("threadCreate: database error on listing creation is handled", async () => 
 			update: async () => {},
 		},
 	});
-	await assert.doesNotReject(threadCreate.execute(makeThread(), models));
+	await assert.doesNotReject(threadCreate.execute(makeThread(), true, models));
 });

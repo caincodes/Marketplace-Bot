@@ -46,7 +46,7 @@ module.exports = {
 					await createPendingListing(newThread, parsed, firstMessage.author, { User, Listing });
 				} catch (error) {
 					console.error("Error creating initial Listing from update:", error);
-					newThread.send("An error occurred while creating your listing. Please try again.");
+					await newThread.send("An error occurred while creating your listing. Please try again.");
 					return;
 				}
 

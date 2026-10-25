@@ -40,20 +40,28 @@ const client = new Client({
 const eventsPath = path.join(__dirname, "events");
 const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
 
+const models = { User, Listing, Transaction, Rating, client };
+
 for (const file of eventFiles) {
-	const filePath = path.join(eventsPath, file);
-	const event = require(filePath);
-	const models = { User, Listing, Transaction, Rating, client };
+	const event = require(path.join(eventsPath, file));
+	// Event handlers are async; EventEmitter ignores the returned promise, so a
+	// rejection would otherwise surface as an unhandled rejection.
+	const handler = (...args) =>
+		Promise.resolve()
+			.then(() => event.execute(...args, models))
+			.catch((err) => console.error(`[Error] Unhandled error in ${event.name}:`, err));
 	if (event.once) {
-		client.once(event.name, () => event.execute(client, models));
-	} else if (event.name === "threadCreate") {
-		client.on(event.name, (thread) => event.execute(thread, models));
-	} else if (event.name === "threadUpdate") {
-		client.on(event.name, (oldThread, newThread) => event.execute(oldThread, newThread, models));
-	} else if (event.name === "interactionCreate") {
-		client.on(event.name, (interaction) => event.execute(interaction, models));
+		client.once(event.name, handler);
+	} else {
+		client.on(event.name, handler);
 	}
 }
+
+// Last line of defense: log stray rejections (e.g. a fire-and-forget send to a
+// deleted thread) instead of letting Node terminate the process.
+process.on("unhandledRejection", (reason) => {
+	console.error("[Error] Unhandled promise rejection:", reason);
+});
 
 // Sync database, then log in. Both steps are fatal on failure: a broken
 // database or a failed login leaves the bot unusable, so surface the error

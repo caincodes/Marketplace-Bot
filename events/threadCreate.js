@@ -7,7 +7,7 @@ const { replyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	name: "threadCreate",
-	async execute(thread, models = {}) {
+	async execute(thread, newlyCreated, models = {}) {
 		// Destructure User, Listing, Transaction, and Rating from models
 		const { User, Listing, Transaction, Rating } = models;
 
@@ -52,7 +52,7 @@ module.exports = {
 			listing = await createPendingListing(thread, parsed, firstMessage.author, { User, Listing });
 		} catch (error) {
 			console.error("Error creating initial Listing:", error);
-			thread.send("An error occurred while creating your listing. Please try again.");
+			await thread.send("An error occurred while creating your listing. Please try again.");
 			return;
 		}
 
