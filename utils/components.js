@@ -15,22 +15,6 @@ function buildConfirmationRow() {
 }
 
 /**
- * Create a collector filter that only accepts the listing author's
- * confirm/trade/deny button presses.
- * @param {string} authorId - The thread starter's user ID
- * @returns {(interaction: Object) => boolean}
- */
-function createAuthorFilter(authorId) {
-	return (interaction) =>
-		Boolean(
-			interaction.user &&
-			interaction.customId &&
-			CONFIRMATION_BUTTON_IDS.includes(interaction.customId) &&
-			interaction.user.id === authorId
-		);
-}
-
-/**
  * Build the Positive / Negative / Skip rating button row for a transaction.
  * @param {string|number} transactionId - Transaction ID
  * @param {string} userId - The user allowed to rate
@@ -59,6 +43,5 @@ function buildRatingButtons(transactionId, userId) {
 module.exports = {
 	CONFIRMATION_BUTTON_IDS,
 	buildConfirmationRow,
-	createAuthorFilter,
 	buildRatingButtons,
 };

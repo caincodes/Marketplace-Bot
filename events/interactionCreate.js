@@ -1,10 +1,15 @@
+const { CONFIRMATION_BUTTON_IDS } = require("../utils/components");
+
 module.exports = {
 	name: "interactionCreate",
 	async execute(interaction, models) {
 		try {
 			// Route based on operation type from customId
 			if (interaction.isButton()) {
-				if (interaction.customId.startsWith("confirm_transaction_")) {
+				if (CONFIRMATION_BUTTON_IDS.includes(interaction.customId)) {
+					const listingHandler = require("./operations/confirmListing");
+					await listingHandler.execute(interaction, models);
+				} else if (interaction.customId.startsWith("confirm_transaction_")) {
 					const confirmHandler = require("./operations/confirmTransaction");
 					await confirmHandler.execute(interaction, models);
 				} else if (interaction.customId.startsWith("close_listing_")) {

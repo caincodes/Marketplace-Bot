@@ -84,3 +84,12 @@ test("interactionCreate: unauthorized user is rejected on confirm", async () => 
 		"unauthorized confirm blocked",
 	);
 });
+
+test("interactionCreate: routes listing confirmation buttons", async () => {
+	const { out, interaction } = captureButton("confirm", "user1");
+	interaction.channelId = "thread1";
+	const models = makeModels();
+	models.Listing.findOne = async () => null;
+	await interactionCreate.execute(interaction, models);
+	assert.ok(out.edits.some((e) => e.includes("No listing found")), "handled by confirmListing");
+});

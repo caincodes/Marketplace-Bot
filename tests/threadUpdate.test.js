@@ -203,3 +203,20 @@ test("threadUpdate: errors in execute are caught", async () => {
 		}),
 	);
 });
+
+test("threadUpdate: re-prompting retires the previous prompt's buttons", async () => {
+	const thread = makeThread(OTHER_VALID_NAME);
+	thread.id = "thread-reprompt";
+	let nextId = 1;
+	const edited = [];
+	thread.send = async () => ({ id: `prompt${nextId++}` });
+	thread.messages = { edit: async (id, opts) => edited.push({ id, opts }) };
+	const models = baseModels({
+		Listing: {
+			findOne: async () => ({ status: "pending", userId: "u1", update: async () => {} }),
+		},
+	});
+	await threadUpdate.execute({ name: "old" }, thread, models);
+	await threadUpdate.execute({ name: "older" }, thread, models);
+	assert.deepStrictEqual(edited, [{ id: "prompt1", opts: { components: [] } }], "old prompt retired");
+});
