@@ -47,13 +47,15 @@ module.exports = {
 			return;
 		}
 
+		let listing;
 		try {
-			await createPendingListing(thread, parsed, firstMessage.author, { User, Listing });
+			listing = await createPendingListing(thread, parsed, firstMessage.author, { User, Listing });
 		} catch (error) {
 			console.error("Error creating initial Listing:", error);
 			await thread.send("An error occurred while creating your listing. Please try again.");
 			return;
 		}
+		if (!listing) return;
 
 		await sendListingPrompt(thread, buildPromptText(firstMessage.author.id, parsed));
 	},

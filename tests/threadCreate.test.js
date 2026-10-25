@@ -1,5 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
+const { UniqueConstraintError } = require("sequelize");
 const threadCreate = require("../events/threadCreate");
 
 const VALID_NAME = "[EU-BE] [H] Test Item [W] €€€";
@@ -7,7 +8,7 @@ const firstMessage = { author: { id: "123456789", username: "testuser" } };
 
 function makeModels(overrides = {}) {
 	return {
-		User: { findOrCreate: async () => [{}, false] },
+		User: { upsert: async () => [{}, true] },
 		Listing: {
 			created: 0,
 			findOne: async () => null,
@@ -174,4 +175,20 @@ test("threadCreate: does not duplicate an existing listing", async () => {
 	models.Listing.findOne = async () => ({ id: 1 });
 	await threadCreate.execute(makeThread(), true, models);
 	assert.strictEqual(models.Listing.created, 0, "existing listing not duplicated");
+});
+
+test("threadCreate: listing created concurrently elsewhere sends nothing", async () => {
+	const models = makeModels({
+		Listing: {
+			findOne: async () => null,
+			create: async () => {
+				throw new UniqueConstraintError({});
+			},
+		},
+	});
+	const thread = makeThread();
+	const sends = [];
+	thread.send = async (m) => sends.push(m);
+	await threadCreate.execute(thread, true, models);
+	assert.strictEqual(sends.length, 0, "no error message and no duplicate prompt");
 });

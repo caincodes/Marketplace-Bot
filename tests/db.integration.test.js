@@ -9,6 +9,8 @@ const { createInteraction } = require("./helpers/interaction");
 const confirmTransaction = require("../events/operations/confirmTransaction");
 const confirmListing = require("../events/operations/confirmListing");
 const rateUser = require("../events/operations/rateUser");
+const threadCreate = require("../events/threadCreate");
+const threadUpdate = require("../events/threadUpdate");
 const { getUserReputation } = require("../utils/reputation");
 
 let sequelize;
@@ -38,7 +40,7 @@ function makeClient() {
 }
 
 async function seedListing(overrides = {}) {
-	await models.User.findOrCreate({ where: { id: "seller" }, defaults: { username: "seller" } });
+	await models.User.upsert({ id: "seller", username: "seller" });
 	return models.Listing.create({
 		userId: "seller",
 		region: "EU",
@@ -202,4 +204,28 @@ test("db: reputation counts confirmed listings, confirmed transactions and recei
 	assert.ok(text.includes("Listings: `1` total"), "pending listing excluded");
 	assert.ok(text.includes("`1` buys, `1` sells, `1` trades"), "only own confirmed transactions");
 	assert.ok(text.includes("`100%` positive based on `1` ratings"), "only ratings received");
+});
+
+test("db: threadCreate and threadUpdate racing on a new post create one listing quietly", async () => {
+	const sends = [];
+	const thread = {
+		id: "race-thread",
+		name: "[EU-BE] [H] Item [W] 100g",
+		parent: { type: 15, availableTags: [] },
+		fetchStarterMessage: async () => ({ author: { id: "seller", username: "seller" } }),
+		send: async (m) => {
+			sends.push(typeof m === "string" ? m : m.content);
+			return { id: `msg${sends.length}` };
+		},
+		messages: { edit: async () => {} },
+	};
+
+	await Promise.all([
+		threadCreate.execute(thread, true, models),
+		threadUpdate.execute({ name: "[EU-BE] [H] Item" }, thread, models),
+	]);
+
+	assert.strictEqual(await models.Listing.count({ where: { threadId: "race-thread" } }), 1);
+	assert.strictEqual(sends.length, 1, "exactly one prompt, no error message");
+	assert.ok(sends[0].includes("Is this correct?"), "the message sent is the prompt");
 });

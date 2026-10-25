@@ -1,3 +1,4 @@
+const { UniqueConstraintError } = require("sequelize");
 const { applyForumTag, FORUM_CHANNEL_TYPE } = require("./forumTags");
 const { waitForStarterMessage } = require("./WaitStarterMessage");
 const { buildConfirmationRow } = require("./components");
@@ -38,26 +39,32 @@ function isMarketplaceThread(thread) {
  * @param {Object} parsed - Parsed thread name (region, type, item, offer)
  * @param {Object} author - Message author ({ id, username })
  * @param {Object} models - Database models ({ User, Listing })
- * @returns {Promise<Object>} The created listing
+ * @returns {Promise<Object|null>} The created listing, or null if the thread
+ *   already has one (threadCreate and threadUpdate can race to create it)
  */
 async function createPendingListing(thread, parsed, author, { User, Listing }) {
 	if (!User || !Listing) throw new Error("Database models not provided.");
 
-	// Ensure the User exists
-	await User.findOrCreate({
-		where: { id: author.id },
-		defaults: { username: author.username },
-	});
+	// Ensure the User exists. upsert is a single statement; findOrCreate opens a
+	// transaction, which collides with any concurrent one on SQLite's shared connection.
+	await User.upsert({ id: author.id, username: author.username });
 
-	const listing = await Listing.create({
-		userId: author.id,
-		region: parsed.region,
-		type: parsed.type,
-		item: parsed.item,
-		offer: parsed.offer,
-		threadId: thread.id,
-		status: "pending", // initial status
-	});
+	let listing;
+	try {
+		listing = await Listing.create({
+			userId: author.id,
+			region: parsed.region,
+			type: parsed.type,
+			item: parsed.item,
+			offer: parsed.offer,
+			threadId: thread.id,
+			status: "pending", // initial status
+		});
+	} catch (error) {
+		// The other event handler created it first and owns the prompt
+		if (error instanceof UniqueConstraintError) return null;
+		throw error;
+	}
 
 	// Apply "pending" tag to the forum thread
 	try {

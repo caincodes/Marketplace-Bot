@@ -22,7 +22,7 @@ function makeThread(name) {
 
 function baseModels(overrides = {}) {
 	return {
-		User: { findOrCreate: async () => [{ id: "u1" }, false] },
+		User: { upsert: async () => [{}, true] },
 		Listing: {
 			findOne: async () => null,
 			create: async () => ({ id: 1 }),
