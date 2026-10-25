@@ -76,29 +76,36 @@ test("threadCreate: mismatched thread name warns and creates no listing", async 
 	);
 });
 
-test("threadCreate: missing models warns and recovers", async () => {
-	const originalWarn = console.warn;
-	let warned = false;
-	console.warn = (...args) => {
-		if (args.join(" ").includes("Database models not provided")) warned = true;
-	};
-	try {
-		await assert.doesNotReject(threadCreate.execute(makeThread(), true, {}));
-	} finally {
-		console.warn = originalWarn;
-	}
-	assert.ok(warned, "missing-models warning emitted");
+test("threadCreate: missing models warns and sends nothing", async (t) => {
+	const warn = t.mock.method(console, "warn", () => {});
+	const thread = makeThread();
+	let sent = false;
+	thread.send = async () => (sent = true);
+	await threadCreate.execute(thread, true, {});
+	assert.ok(
+		warn.mock.calls.some((c) => c.arguments.join(" ").includes("Database models not provided")),
+		"missing-models warning emitted",
+	);
+	assert.strictEqual(sent, false, "nothing posted to the thread");
 });
 
-test("threadCreate: WaitStarterMessage error is handled gracefully", async () => {
+test("threadCreate: starter message fetch error is logged and stops processing", async (t) => {
+	const errors = t.mock.method(console, "error", () => {});
+	const models = makeModels();
 	const thread = makeThread();
 	thread.fetchStarterMessage = async () => {
 		throw new Error("Failed to fetch message");
 	};
-	await assert.doesNotReject(threadCreate.execute(thread, true, makeModels()));
+	await threadCreate.execute(thread, true, models);
+	assert.strictEqual(models.Listing.created, 0, "no listing created");
+	assert.ok(
+		errors.mock.calls.some((c) => String(c.arguments[0]).includes("Error fetching first message")),
+		"fetch error logged",
+	);
 });
 
-test("threadCreate: database error on listing creation is handled", async () => {
+test("threadCreate: database error on listing creation tells the author", async (t) => {
+	t.mock.method(console, "error", () => {});
 	const models = makeModels({
 		Listing: {
 			findOne: async () => null,
@@ -108,7 +115,31 @@ test("threadCreate: database error on listing creation is handled", async () => 
 			update: async () => {},
 		},
 	});
-	await assert.doesNotReject(threadCreate.execute(makeThread(), true, models));
+	const thread = makeThread();
+	const sends = [];
+	thread.send = async (m) => sends.push(typeof m === "string" ? m : m.content);
+	await threadCreate.execute(thread, true, models);
+	assert.deepStrictEqual(
+		sends,
+		["An error occurred while creating your listing. Please try again."],
+		"error message sent and no confirmation prompt",
+	);
+});
+
+test("threadCreate: valid listing posts a confirmation prompt with buttons", async () => {
+	const thread = makeThread();
+	thread.id = "thread-prompt";
+	const sends = [];
+	thread.send = async (m) => {
+		sends.push(m);
+		return { id: "prompt1" };
+	};
+	await threadCreate.execute(thread, true, makeModels());
+	assert.strictEqual(sends.length, 1, "one message sent");
+	assert.ok(sends[0].content.includes("are SELLING `Test Item`"), "prompt describes the listing");
+	assert.ok(sends[0].content.includes("<@123456789>"), "prompt mentions the author");
+	const buttonIds = sends[0].components[0].components.map((b) => b.data.custom_id);
+	assert.deepStrictEqual(buttonIds, ["confirm", "trade", "deny"], "confirmation buttons attached");
 });
 
 test("threadCreate: ignores threads the bot was merely added to", async () => {

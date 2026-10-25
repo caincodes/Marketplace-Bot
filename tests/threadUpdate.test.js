@@ -44,7 +44,12 @@ test("threadUpdate: unchanged name is a no-op", async () => {
 });
 
 test("threadUpdate: returns early when models are missing", async () => {
-	await threadUpdate.execute({ name: "old" }, makeThread(VALID_NAME), {});
+	const thread = makeThread(VALID_NAME);
+	let touched = false;
+	thread.send = async () => (touched = true);
+	thread.fetchStarterMessage = async () => (touched = true);
+	await threadUpdate.execute({ name: "old" }, thread, {});
+	assert.strictEqual(touched, false, "no Discord calls without models");
 });
 
 test("threadUpdate: ignores threads outside forum channels", async () => {
@@ -190,7 +195,8 @@ test("threadUpdate: no existing listing + invalid name does nothing", async () =
 	assert.strictEqual(created, false, "no listing created for invalid rename");
 });
 
-test("threadUpdate: errors in execute are caught", async () => {
+test("threadUpdate: errors in execute are caught and logged", async (t) => {
+	const errors = t.mock.method(console, "error", () => {});
 	await threadUpdate.execute(
 		{ name: "old" },
 		makeThread(VALID_NAME),
@@ -201,6 +207,12 @@ test("threadUpdate: errors in execute are caught", async () => {
 				},
 			},
 		}),
+	);
+	assert.ok(
+		errors.mock.calls.some((c) =>
+			String(c.arguments[0]).includes("[threadUpdate] Error in execute"),
+		),
+		"error logged",
 	);
 });
 

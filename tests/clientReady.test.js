@@ -27,9 +27,12 @@ test("clientReady: registers commands once on ready", async () => {
 	assert.deepStrictEqual(names, ["close", "confirm", "history"], "all commands registered");
 });
 
-test("clientReady: registration error is caught inside the event", async () => {
-	await assert.doesNotReject(
-		clientReady.execute(makeClient({ shouldThrow: true }), {}),
-		"registration error handled without crashing",
+test("clientReady: registration error is caught and logged", async (t) => {
+	t.mock.method(console, "log", () => {});
+	const errors = t.mock.method(console, "error", () => {});
+	await clientReady.execute(makeClient({ shouldThrow: true }), {});
+	assert.ok(
+		errors.mock.calls.some((c) => String(c.arguments[0]?.message).includes("Registration failed")),
+		"registration error logged",
 	);
 });
