@@ -2,15 +2,18 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const confirm = require("../commands/confirm");
 
-function makeListing() {
+function makeListing(overrides = {}) {
 	return {
 		id: 1,
 		userId: "seller123",
 		type: "SELL",
 		item: "Test Item",
 		offer: "100g",
+		status: "confirmed",
+		closed: false,
 		transactionIds: [],
 		update: async () => {},
+		...overrides,
 	};
 }
 
@@ -103,5 +106,59 @@ test("confirm: database error handled gracefully", async () => {
 	assert.ok(
 		interaction.replies.some((r) => r.includes("An error occurred")),
 		"error surfaced to user, not thrown",
+	);
+});
+
+test("confirm: rejects closed listings", async () => {
+	const interaction = makeInteraction();
+	await confirm.execute(
+		interaction,
+		baseModels({ Listing: { findOne: async () => makeListing({ closed: true }) } }),
+	);
+	assert.ok(interaction.replies.some((r) => r.includes("listing is closed")), "closed rejected");
+});
+
+test("confirm: rejects listings that are still pending", async () => {
+	const interaction = makeInteraction();
+	await confirm.execute(
+		interaction,
+		baseModels({ Listing: { findOne: async () => makeListing({ status: "pending" }) } }),
+	);
+	assert.ok(
+		interaction.replies.some((r) => r.includes("hasn't been confirmed yet")),
+		"pending rejected",
+	);
+});
+
+test("confirm: failed DM removes the transaction and tells the user", async () => {
+	let destroyedWhere = null;
+	let listingUpdated = false;
+	const interaction = makeInteraction({
+		options: {
+			getUser: () => ({
+				id: "seller123",
+				bot: false,
+				send: async () => {
+					throw new Error("Cannot send messages to this user");
+				},
+			}),
+			getString: () => "purchase",
+		},
+	});
+	await confirm.execute(
+		interaction,
+		baseModels({
+			Listing: { findOne: async () => makeListing({ update: async () => (listingUpdated = true) }) },
+			Transaction: {
+				create: async (data) => ({ id: 7, ...data }),
+				destroy: async ({ where }) => (destroyedWhere = where),
+			},
+		}),
+	);
+	assert.deepStrictEqual(destroyedWhere, { id: 7 }, "orphaned transaction destroyed");
+	assert.strictEqual(listingUpdated, false, "listing not linked to the failed transaction");
+	assert.ok(
+		interaction.replies.some((r) => r.includes("Couldn't send a confirmation DM")),
+		"user told the DM failed",
 	);
 });

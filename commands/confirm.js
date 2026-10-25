@@ -46,6 +46,14 @@ module.exports = {
 				return await replyEphemeral(interaction, "No listing found for this forum post.");
 			}
 
+			if (listing.closed) {
+				return await replyEphemeral(interaction, "This listing is closed.");
+			}
+
+			if (listing.status !== "confirmed") {
+				return await replyEphemeral(interaction, "This listing hasn't been confirmed yet.");
+			}
+
 			// Determine if initiator is the seller
 			const isInitiatorSeller = interaction.user.id === listing.userId;
 
@@ -75,10 +83,6 @@ module.exports = {
 				status: "pending",
 			});
 
-			// Add transaction ID to listing
-			const currentTransactionIds = listing.transactionIds || [];
-			await listing.update({ transactionIds: [...currentTransactionIds, transaction.id] });
-
 			let confirmationMessage = "";
 			if (type === "purchase") {
 				if (isInitiatorSeller) {
@@ -94,25 +98,40 @@ module.exports = {
 				}>.`;
 			}
 
-			await recipient.send({
-				content: `Listing: https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}\n\n${confirmationMessage}`,
-				components: [
-					new ActionRowBuilder().addComponents(
-						new ButtonBuilder()
-							.setCustomId(
-								`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_confirm`
-							)
-							.setLabel("Confirm Transaction")
-							.setStyle(ButtonStyle.Success),
-						new ButtonBuilder()
-							.setCustomId(
-								`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_deny`
-							)
-							.setLabel("Cancel")
-							.setStyle(ButtonStyle.Danger)
-					),
-				],
-			});
+			try {
+				await recipient.send({
+					content: `Listing: https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}\n\n${confirmationMessage}`,
+					components: [
+						new ActionRowBuilder().addComponents(
+							new ButtonBuilder()
+								.setCustomId(
+									`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_confirm`
+								)
+								.setLabel("Confirm Transaction")
+								.setStyle(ButtonStyle.Success),
+							new ButtonBuilder()
+								.setCustomId(
+									`confirm_transaction_${transaction.id}_${interaction.user.id}_${recipient.id}_deny`
+								)
+								.setLabel("Cancel")
+								.setStyle(ButtonStyle.Danger)
+						),
+					],
+				});
+			} catch (error) {
+				// Most likely the recipient has DMs disabled; don't leave an orphaned
+				// pending transaction behind.
+				console.error("Error sending transaction confirmation DM:", error);
+				await Transaction.destroy({ where: { id: transaction.id } });
+				return await replyEphemeral(
+					interaction,
+					`Couldn't send a confirmation DM to <@${recipient.id}>. They may have DMs disabled.`
+				);
+			}
+
+			// Add transaction ID to listing
+			const currentTransactionIds = listing.transactionIds || [];
+			await listing.update({ transactionIds: [...currentTransactionIds, transaction.id] });
 
 			await replyEphemeral(interaction, "Transaction confirmation sent.");
 		} catch (error) {
