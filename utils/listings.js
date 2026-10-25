@@ -1,4 +1,4 @@
-const { applyForumTag } = require("./forumTags");
+const { applyForumTag, FORUM_CHANNEL_TYPE } = require("./forumTags");
 const { waitForStarterMessage } = require("./WaitStarterMessage");
 
 /**
@@ -10,6 +10,18 @@ const { waitForStarterMessage } = require("./WaitStarterMessage");
  */
 async function fetchFirstMessage(thread) {
 	return waitForStarterMessage(thread);
+}
+
+/**
+ * Whether a thread is a post in the marketplace forum. Any forum qualifies
+ * unless MARKETPLACE_FORUM_ID restricts the bot to a single forum channel.
+ * @param {Object} thread - Discord thread
+ * @returns {boolean}
+ */
+function isMarketplaceThread(thread) {
+	if (thread.parent?.type !== FORUM_CHANNEL_TYPE) return false;
+	const forumId = process.env.MARKETPLACE_FORUM_ID;
+	return !forumId || thread.parentId === forumId;
 }
 
 /**
@@ -50,4 +62,4 @@ async function createPendingListing(thread, parsed, author, { User, Listing }) {
 	return listing;
 }
 
-module.exports = { fetchFirstMessage, createPendingListing };
+module.exports = { fetchFirstMessage, isMarketplaceThread, createPendingListing };

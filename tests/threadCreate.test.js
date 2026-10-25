@@ -10,6 +10,7 @@ function makeModels(overrides = {}) {
 		User: { findOrCreate: async () => [{}, false] },
 		Listing: {
 			created: 0,
+			findOne: async () => null,
 			create: async function () {
 				this.created++;
 				return { update: async () => {} };
@@ -100,6 +101,7 @@ test("threadCreate: WaitStarterMessage error is handled gracefully", async () =>
 test("threadCreate: database error on listing creation is handled", async () => {
 	const models = makeModels({
 		Listing: {
+			findOne: async () => null,
 			create: async () => {
 				throw new Error("Database error");
 			},
@@ -107,4 +109,38 @@ test("threadCreate: database error on listing creation is handled", async () => 
 		},
 	});
 	await assert.doesNotReject(threadCreate.execute(makeThread(), true, models));
+});
+
+test("threadCreate: ignores threads the bot was merely added to", async () => {
+	const models = makeModels();
+	await threadCreate.execute(makeThread(), false, models);
+	assert.strictEqual(models.Listing.created, 0, "no listing for existing thread");
+});
+
+test("threadCreate: ignores threads outside forum channels", async () => {
+	const models = makeModels();
+	const thread = makeThread();
+	thread.parent = { type: 0, availableTags: [] };
+	await threadCreate.execute(thread, true, models);
+	assert.strictEqual(models.Listing.created, 0, "no listing for non-forum thread");
+});
+
+test("threadCreate: ignores forums other than MARKETPLACE_FORUM_ID when set", async () => {
+	const models = makeModels();
+	const thread = makeThread();
+	thread.parentId = "other-forum";
+	process.env.MARKETPLACE_FORUM_ID = "market-forum";
+	try {
+		await threadCreate.execute(thread, true, models);
+	} finally {
+		delete process.env.MARKETPLACE_FORUM_ID;
+	}
+	assert.strictEqual(models.Listing.created, 0, "no listing for other forum");
+});
+
+test("threadCreate: does not duplicate an existing listing", async () => {
+	const models = makeModels();
+	models.Listing.findOne = async () => ({ id: 1 });
+	await threadCreate.execute(makeThread(), true, models);
+	assert.strictEqual(models.Listing.created, 0, "existing listing not duplicated");
 });

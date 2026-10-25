@@ -32,5 +32,9 @@ module.exports = (sequelize) => {
 			type: Sequelize.BOOLEAN,
 			defaultValue: false,
 		},
+	}, {
+		// One listing per forum post. Declared as an index (not a column
+		// constraint) so sync() adds it to existing databases too.
+		indexes: [{ unique: true, fields: ["threadId"] }],
 	});
 };

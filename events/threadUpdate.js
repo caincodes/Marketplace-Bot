@@ -1,14 +1,18 @@
 const parseThreadName = require("../utils/parseThreadName");
 const { getUserReputation } = require("../utils/reputation");
 const { updateForumTag } = require("../utils/forumTags");
-const { createPendingListing, fetchFirstMessage } = require("../utils/listings");
+const {
+	createPendingListing,
+	fetchFirstMessage,
+	isMarketplaceThread,
+} = require("../utils/listings");
 const { buildConfirmationRow, createAuthorFilter } = require("../utils/components");
 const { replyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	name: "threadUpdate",
 	async execute(oldThread, newThread, models = {}) {
-		if (oldThread.name === newThread.name) {
+		if (oldThread.name === newThread.name || !isMarketplaceThread(newThread)) {
 			return;
 		}
 

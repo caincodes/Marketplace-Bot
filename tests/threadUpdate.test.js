@@ -44,7 +44,17 @@ test("threadUpdate: unchanged name is a no-op", async () => {
 });
 
 test("threadUpdate: returns early when models are missing", async () => {
-	await threadUpdate.execute({ name: "old" }, { name: VALID_NAME }, {});
+	await threadUpdate.execute({ name: "old" }, makeThread(VALID_NAME), {});
+});
+
+test("threadUpdate: ignores threads outside forum channels", async () => {
+	let findOneCalled = false;
+	await threadUpdate.execute(
+		{ name: "old" },
+		{ ...makeThread(VALID_NAME), parent: { type: 0 } },
+		baseModels({ Listing: { findOne: async () => (findOneCalled = true) } }),
+	);
+	assert.strictEqual(findOneCalled, false, "non-forum thread ignored");
 });
 
 test("threadUpdate: confirmed listing updates its fields on a valid rename", async () => {

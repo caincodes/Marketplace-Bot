@@ -1,13 +1,20 @@
 const parseThreadName = require("../utils/parseThreadName");
 const { getUserReputation } = require("../utils/reputation");
 const { updateForumTag } = require("../utils/forumTags");
-const { createPendingListing, fetchFirstMessage } = require("../utils/listings");
+const {
+	createPendingListing,
+	fetchFirstMessage,
+	isMarketplaceThread,
+} = require("../utils/listings");
 const { buildConfirmationRow, createAuthorFilter } = require("../utils/components");
 const { replyEphemeral } = require("../utils/replies");
 
 module.exports = {
 	name: "threadCreate",
 	async execute(thread, newlyCreated, models = {}) {
+		// threadCreate also fires when the bot is added to an existing thread
+		if (!newlyCreated || !isMarketplaceThread(thread)) return;
+
 		// Destructure User, Listing, Transaction, and Rating from models
 		const { User, Listing, Transaction, Rating } = models;
 
@@ -31,6 +38,8 @@ module.exports = {
 			console.warn(`[threadCreate] Starter message never became available for ${thread.id}`);
 			return;
 		}
+
+		if (Listing && (await Listing.findOne({ where: { threadId: thread.id } }))) return;
 
 		const parsed = parseThreadName(thread.name);
 
