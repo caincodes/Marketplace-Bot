@@ -43,7 +43,7 @@ module.exports = {
 						status: "confirmed",
 						confirmations: [interaction.user.id],
 						forumPostId: listing?.threadId || transaction.forumPostId,
-						initiatorId: interaction.user.id, // Track who initiated
+						initiatorId, // The user who ran /confirm (not the one confirming)
 					},
 					{ where: { id: transaction.id, status: "pending" } }
 				);

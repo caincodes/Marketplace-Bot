@@ -53,6 +53,7 @@ test("confirmTransaction: confirm updates records and prompts for ratings", asyn
 	assert.strictEqual(interaction.state.deferred, true, "deferred");
 	assert.strictEqual(transaction.status, "confirmed", "transaction confirmed");
 	assert.deepStrictEqual(transaction.confirmations, ["intended2"], "confirmation recorded");
+	assert.strictEqual(transaction.initiatorId, "initiator1", "initiator taken from customId");
 	assert.ok(
 		sent.some((m) => m.includes("purchased an item from")),
 		"purchase message posted to forum",
