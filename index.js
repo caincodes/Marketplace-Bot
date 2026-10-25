@@ -29,10 +29,8 @@ const { Client, GatewayIntentBits } = require("discord.js");
 const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMembers,
 		GatewayIntentBits.GuildMessages,
 		GatewayIntentBits.DirectMessages,
-		GatewayIntentBits.MessageContent,
 	],
 });
 
@@ -68,7 +66,7 @@ process.on("unhandledRejection", (reason) => {
 // and exit rather than continuing in a half-initialized state.
 (async () => {
 	try {
-		await sequelize.sync(); // Safe sync - adds missing columns/tables without dropping existing data
+		await sequelize.sync(); // Creates missing tables and indexes; never alters existing columns
 		console.log("Database synced successfully.");
 	} catch (err) {
 		console.error("Fatal: failed to sync database:", err);
